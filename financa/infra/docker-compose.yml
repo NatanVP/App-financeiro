@@ -1,0 +1,66 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-financa}
+      POSTGRES_USER: ${POSTGRES_USER:-financa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - financa
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-financa}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-financa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-financa}
+      API_TOKEN: ${API_TOKEN:?required}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - financa
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  bot:
+    build:
+      context: ../bot
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:?required}
+      TELEGRAM_ALLOWED_CHAT_ID: ${TELEGRAM_ALLOWED_CHAT_ID:?required}
+      TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:?required}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:?required}
+      BOT_WEBHOOK_PORT: "8443"
+      API_BASE_URL: http://backend:8000
+      API_TOKEN: ${API_TOKEN:?required}
+      OPENCLAW_API_URL: ${OPENCLAW_API_URL:-}
+      OPENCLAW_API_KEY: ${OPENCLAW_API_KEY:-}
+    depends_on:
+      - backend
+    networks:
+      - financa
+    ports:
+      # Caddy proxies public HTTPS → localhost:8443
+      - "127.0.0.1:8443:8443"
+
+volumes:
+  postgres_data:
+
+networks:
+  financa:
+    driver: bridge

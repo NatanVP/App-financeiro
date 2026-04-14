@@ -1,0 +1,61 @@
+import { create } from 'zustand';
+import { money, Money } from '@/lib/money';
+
+export interface Debt {
+  id: string;
+  name: string;
+  type: string;
+  principal_cents: Money;
+  current_balance_cents: Money;
+  interest_rate_monthly: number;
+  start_date: string;
+  due_date: string | null;
+  monthly_payment_cents: Money;
+  status: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+interface DebtState {
+  debts: Debt[];
+  setDebts: (debts: Debt[]) => void;
+  addDebt: (debt: Debt) => void;
+  updateDebt: (id: string, updates: Partial<Debt>) => void;
+  deleteDebt: (id: string) => void;
+  getActiveDebts: () => Debt[];
+  getTotalBalance: () => Money;
+}
+
+export const useDebtStore = create<DebtState>((set, get) => ({
+  debts: [],
+
+  setDebts: (debts) => set({ debts }),
+
+  addDebt: (debt) => set((state) => ({ debts: [debt, ...state.debts] })),
+
+  updateDebt: (id, updates) =>
+    set((state) => ({
+      debts: state.debts.map((d) =>
+        d.id === id ? { ...d, ...updates, updated_at: new Date().toISOString() } : d,
+      ),
+    })),
+
+  deleteDebt: (id) =>
+    set((state) => ({
+      debts: state.debts.map((d) =>
+        d.id === id ? { ...d, deleted_at: new Date().toISOString() } : d,
+      ),
+    })),
+
+  getActiveDebts: () =>
+    get().debts.filter((d) => d.status === 'active' && !d.deleted_at),
+
+  getTotalBalance: () =>
+    money(
+      get()
+        .getActiveDebts()
+        .reduce((s, d) => s + d.current_balance_cents, 0),
+    ),
+}));

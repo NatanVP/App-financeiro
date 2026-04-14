@@ -1,0 +1,44 @@
+# Replace yourdomain.com with your actual domain
+yourdomain.com {
+    # Backend API
+    handle /api/* {
+        uri strip_prefix /api
+        reverse_proxy localhost:8000
+    }
+
+    # Telegram webhook — proxied to the bot service
+    handle /telegram/webhook/* {
+        reverse_proxy localhost:8443
+    }
+
+    # Health check
+    handle /health {
+        reverse_proxy localhost:8000
+    }
+
+    # Default: return 404 for unknown paths
+    handle {
+        respond 404
+    }
+
+    # TLS handled automatically by Caddy via Let's Encrypt
+    tls {
+        on_demand
+    }
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+    }
+
+    log {
+        output file /var/log/caddy/financa.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+}

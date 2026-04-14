@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Finança",
+    "slug": "financa",
+    "version": "1.0.0",
+    "scheme": "financa",
+    "web": { "bundler": "metro" },
+    "plugins": [
+      "expo-router",
+      [
+        "op-sqlite",
+        { "sqliteConnection": { "enableCRSQLite": false } }
+      ]
+    ],
+    "android": {
+      "adaptiveIcon": { "backgroundColor": "#0E0E10" },
+      "package": "br.com.financa.app"
+    },
+    "ios": {
+      "bundleIdentifier": "br.com.financa.app"
+    }
+  }
+}
