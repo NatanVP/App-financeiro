@@ -161,6 +161,19 @@ EXPO_PUBLIC_API_TOKEN=<mesmo-API_TOKEN-do-backend>
 EXPO_PUBLIC_DEVICE_ID=meu-celular-1
 ```
 
+> ⚠️ **ATENÇÃO — TOKEN EXPOSTO NO GIT**
+>
+> O arquivo `financa/mobile/.env` continha o token real (`EXPO_PUBLIC_API_TOKEN`) e foi **acidentalmente incluído em um commit anterior** (commit `e773f58` — "Initial commit").
+> Esse token ainda está visível no histórico do repositório mesmo após o `.gitignore` ter sido adicionado.
+>
+> **Ação necessária ao chegar em casa:**
+> 1. Gere um novo token no backend (variável `API_TOKEN` em `financa/infra/.env` na VPS).
+> 2. Atualize `financa/mobile/.env` localmente com o novo token.
+> 3. Reinicie o container do backend: `docker compose up --build -d`
+> 4. Se quiser limpar o histórico do git para remover o token antigo, use `git filter-repo` ou contate o GitHub Support para apagar o cache. Mas o mais urgente é **rotacionar o token**.
+>
+> O token exposto é: `71e6841090150621062e99f8dd37c5876b81569d4cc7aa1d30a323b13b4ee2b6`
+
 ---
 
 ## 5. Docker Compose (infra)
