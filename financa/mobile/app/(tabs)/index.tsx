@@ -5,6 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 import { Colors, Spacing, Typography } from '@/constants/theme';
@@ -25,7 +26,7 @@ export default function DashboardScreen() {
   const year = today.getFullYear();
   const month = today.getMonth() + 1;
 
-  const { getMonthlyTotals } = useTransactionStore();
+  const { getMonthlyTotals, getTopCategories } = useTransactionStore();
   const { getActiveDebts, getTotalBalance } = useDebtStore();
   const { getActiveGoals } = useGoalStore();
 
@@ -42,14 +43,7 @@ export default function DashboardScreen() {
     isHighlighted: i === month - 1,
   }));
 
-  // Top categories — simplified
-  const topCategories = [
-    { name: 'Moradia', amountCents: money(240000) },
-    { name: 'Alimentação', amountCents: money(125000) },
-    { name: 'Lazer', amountCents: money(80000) },
-    { name: 'Transporte', amountCents: money(60000) },
-    { name: 'Saúde', amountCents: money(45000) },
-  ];
+  const topCategories = getTopCategories(year, month);
   const maxCatAmount = Math.max(...topCategories.map((c) => c.amountCents), 1);
 
   // Emergency reserve goal
@@ -87,7 +81,7 @@ export default function DashboardScreen() {
             {MONTH_NAMES[month - 1]}, {year}
           </Text>
           <TouchableOpacity onPress={() => router.push('/more')}>
-            <Text style={styles.settingsIcon}>⚙</Text>
+            <Ionicons name="settings-outline" size={22} color={Colors.primaryText} />
           </TouchableOpacity>
         </View>
       </View>
@@ -138,20 +132,21 @@ export default function DashboardScreen() {
       {/* Top categories */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>MAIORES CATEGORIAS</Text>
-        <View style={{ gap: 12 }}>
-          {topCategories.map((cat) => (
-            <View key={cat.name} style={{ gap: 4 }}>
-              <View style={styles.catRow}>
-                <Text style={styles.catName}>{cat.name}</Text>
-                <Text style={styles.catAmount}>{formatBRL(cat.amountCents)}</Text>
+        {topCategories.length === 0 ? (
+          <Text style={styles.emptyHint}>Nenhuma despesa lançada este mês.</Text>
+        ) : (
+          <View style={{ gap: 12 }}>
+            {topCategories.map((cat) => (
+              <View key={cat.name} style={{ gap: 4 }}>
+                <View style={styles.catRow}>
+                  <Text style={styles.catName}>{cat.name}</Text>
+                  <Text style={styles.catAmount}>{formatBRL(cat.amountCents)}</Text>
+                </View>
+                <ProgressBar progress={cat.amountCents / maxCatAmount} height={4} />
               </View>
-              <ProgressBar
-                progress={cat.amountCents / maxCatAmount}
-                height={4}
-              />
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* Active debts summary */}
@@ -187,7 +182,7 @@ const styles = StyleSheet.create({
   appName: { ...Typography.titleMd, color: Colors.primaryText, fontWeight: '700', letterSpacing: -0.5 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   monthLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 2, color: Colors.onSurfaceVariant, fontWeight: '500' },
-  settingsIcon: { color: Colors.primaryText, fontSize: 18 },
+  settingsIcon: {},
 
   heroCard: {
     borderRadius: 12,
@@ -207,6 +202,7 @@ const styles = StyleSheet.create({
   bigPct: { fontSize: 24, fontWeight: '700', fontVariant: ['tabular-nums'], color: Colors.onSurface },
   subLabel: { fontSize: 10, color: Colors.outline, fontVariant: ['tabular-nums'] },
 
+  emptyHint: { fontSize: 11, color: Colors.onSurfaceVariant, marginTop: 4 },
   catRow: { flexDirection: 'row', justifyContent: 'space-between' },
   catName: { fontSize: 11, fontWeight: '500', color: Colors.onSurface },
   catAmount: { fontSize: 11, fontWeight: '500', fontVariant: ['tabular-nums'], color: Colors.onSurface },

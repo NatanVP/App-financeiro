@@ -14,22 +14,14 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { money, Money } from '@/lib/money';
 import { NumPad } from '@/components/ui/NumPad';
 
 type TxType = 'expense' | 'income' | 'transfer';
-
-const CATEGORIES = [
-  { id: '1', name: 'Mercado', icon: '🛒' },
-  { id: '2', name: 'Gasolina', icon: '⛽' },
-  { id: '3', name: 'Aluguel', icon: '🏠' },
-  { id: '4', name: 'Lazer', icon: '🎬' },
-  { id: '5', name: 'Saúde', icon: '💊' },
-  { id: '6', name: 'Transporte', icon: '🚗' },
-  { id: '7', name: 'Salário', icon: '💼' },
-];
+import { CATEGORIES } from '@/constants/categories';
 
 export default function NewTransactionScreen() {
   const insets = useSafeAreaInsets();
@@ -96,7 +88,7 @@ export default function NewTransactionScreen() {
         {/* Header row */}
         <View style={styles.sheetHeader}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.closeBtn}>✕</Text>
+            <Ionicons name="close" size={24} color={Colors.onSurfaceVariant} />
           </TouchableOpacity>
           <Text style={styles.sheetTitle}>NOVA TRANSAÇÃO</Text>
           <View style={{ width: 32 }} />
@@ -143,7 +135,11 @@ export default function NewTransactionScreen() {
                     ]}
                     onPress={() => setSelectedCategory(cat.id)}
                   >
-                    <Text style={styles.catIcon}>{cat.icon}</Text>
+                    <MaterialCommunityIcons
+                      name={cat.icon}
+                      size={20}
+                      color={selectedCategory === cat.id ? Colors.primary : Colors.onSurfaceVariant}
+                    />
                     <Text style={[
                       styles.catName,
                       selectedCategory === cat.id && { color: Colors.primary },
@@ -200,7 +196,7 @@ const styles = StyleSheet.create({
   },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: `${Colors.outlineVariant}50`, alignSelf: 'center', marginVertical: 12 },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.xl, paddingBottom: Spacing.lg },
-  closeBtn: { color: Colors.onSurfaceVariant, fontSize: 18 },
+  closeBtn: {},
   sheetTitle: { ...Typography.labelSm, fontWeight: '500', letterSpacing: 1.5, color: Colors.onSurfaceVariant },
   typeToggle: { flexDirection: 'row', marginHorizontal: Spacing.xl, backgroundColor: Colors.surface, borderRadius: 8, padding: 4, marginBottom: Spacing.xl },
   typeBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },

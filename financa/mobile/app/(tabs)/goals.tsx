@@ -4,6 +4,7 @@
 import React from 'react';
 import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { formatBRL, money } from '@/lib/money';
@@ -56,7 +57,7 @@ export default function GoalsScreen() {
         </View>
 
         <View style={[styles.card, styles.centerCard]}>
-          <Text style={styles.bigIcon}>🎯</Text>
+          <MaterialCommunityIcons name="flag-checkered" size={32} color={Colors.primary} />
           <Text style={styles.cardLabel}>FREQUÊNCIA</Text>
           <Text style={styles.freqText}>Mensal</Text>
         </View>
@@ -120,7 +121,7 @@ const styles = StyleSheet.create({
   statLabel: { ...Typography.labelSm, color: Colors.onSurfaceVariant },
   statValue: { fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'] },
   divider: { width: 1, backgroundColor: `${Colors.outlineVariant}25`, height: 32 },
-  bigIcon: { fontSize: 28, marginBottom: 4 },
+  bigIcon: { marginBottom: 4 },
   freqText: { fontSize: 16, fontWeight: '700', color: Colors.onSurface },
   sectionHeader: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 2, fontWeight: '700', color: Colors.onSurfaceVariant, paddingHorizontal: 4, marginTop: Spacing.md },
   goalsGrid: { gap: Spacing.sm },

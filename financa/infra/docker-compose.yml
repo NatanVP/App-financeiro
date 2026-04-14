@@ -32,31 +32,9 @@ services:
         condition: service_healthy
     networks:
       - financa
+      - openclaw          # visível para o OpenClaw por nome: http://financa-backend:8000
     ports:
-      - "127.0.0.1:8000:8000"
-
-  bot:
-    build:
-      context: ../bot
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    environment:
-      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:?required}
-      TELEGRAM_ALLOWED_CHAT_ID: ${TELEGRAM_ALLOWED_CHAT_ID:?required}
-      TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:?required}
-      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:?required}
-      BOT_WEBHOOK_PORT: "8443"
-      API_BASE_URL: http://backend:8000
-      API_TOKEN: ${API_TOKEN:?required}
-      OPENCLAW_API_URL: ${OPENCLAW_API_URL:-}
-      OPENCLAW_API_KEY: ${OPENCLAW_API_KEY:-}
-    depends_on:
-      - backend
-    networks:
-      - financa
-    ports:
-      # Caddy proxies public HTTPS → localhost:8443
-      - "127.0.0.1:8443:8443"
+      - "0.0.0.0:8000:8000"   # app mobile acessa via IP público da VPS
 
 volumes:
   postgres_data:
@@ -64,3 +42,6 @@ volumes:
 networks:
   financa:
     driver: bridge
+  openclaw:
+    external: true
+    name: openclaw-clgu_default   # rede existente do OpenClaw

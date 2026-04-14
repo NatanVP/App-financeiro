@@ -1,4 +1,6 @@
-from datetime import date, datetime
+from __future__ import annotations
+
+from datetime import date as _date, datetime
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -11,7 +13,7 @@ class TransactionBase(BaseModel):
     # type: expense | income | transfer
     type: str
     description: str = Field(default="", max_length=200)
-    date: date
+    date: _date
     notes: str | None = None
     transfer_to_account_id: str | None = None
     device_id: str | None = None
@@ -35,7 +37,7 @@ class TransactionUpdate(BaseModel):
     amount_cents: int | None = Field(None, gt=0)
     type: str | None = None
     description: str | None = Field(None, max_length=200)
-    date: date | None = None
+    date: _date | None = None
     notes: str | None = None
     is_reconciled: bool | None = None
     source: str | None = None

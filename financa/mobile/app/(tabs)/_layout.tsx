@@ -1,20 +1,27 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
 import { router } from 'expo-router';
 
+type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+
 function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {
-  // Using text placeholder since we don't have Material Icons in RN without extra setup
-  const icons: Record<string, string> = {
-    index: '⬛',
-    transactions: '📋',
-    goals: '🎯',
-    more: '⋯',
+  const icons: Record<string, MCIName> = {
+    index:        'view-dashboard-outline',
+    transactions: 'swap-horizontal',
+    goals:        'flag-checkered',
+    more:         'dots-horizontal-circle-outline',
   };
+  const icon = icons[name] ?? 'circle-outline';
   return (
-    <Text style={{ fontSize: 18, opacity: focused ? 1 : 0.5 }}>{icons[name] ?? '●'}</Text>
+    <MaterialCommunityIcons
+      name={icon}
+      size={22}
+      color={focused ? Colors.primary : `${Colors.primaryText}60`}
+    />
   );
 }
 
@@ -69,7 +76,7 @@ export default function TabsLayout() {
               onPress={() => router.push('/new-transaction')}
               activeOpacity={0.8}
             >
-              <Text style={styles.fabText}>+</Text>
+              <Ionicons name="add" size={26} color={Colors.onPrimary} />
             </TouchableOpacity>
           ),
         }}
@@ -108,5 +115,4 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
   },
-  fabText: { color: Colors.onPrimary, fontSize: 24, fontWeight: '900', lineHeight: 28 },
 });

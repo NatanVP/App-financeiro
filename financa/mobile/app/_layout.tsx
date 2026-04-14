@@ -1,16 +1,22 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { open } from 'op-sqlite';
-import { runMigrations } from '@/db/migrations';
+import { Platform } from 'react-native';
 import { Colors } from '@/constants/theme';
 
 export default function RootLayout() {
   useEffect(() => {
-    // Initialize SQLite database on app start
+    // SQLite is not available on web
+    if (Platform.OS === 'web') return;
     (async () => {
-      const db = open({ name: 'financa.db' });
-      await runMigrations(db);
+      try {
+        const { open } = await import('@op-engineering/op-sqlite');
+        const { runMigrations } = await import('@/db/migrations');
+        const db = open({ name: 'financa.db' });
+        await runMigrations(db);
+      } catch (e) {
+        console.warn('DB init failed:', e);
+      }
     })();
   }, []);
 

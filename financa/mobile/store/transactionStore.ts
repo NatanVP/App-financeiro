@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { money, Money } from '@/lib/money';
+import { CATEGORY_MAP } from '@/constants/categories';
 
 export interface Transaction {
   id: string;
@@ -27,6 +28,7 @@ interface TransactionState {
   deleteTransaction: (id: string) => void;
   getMonthlyTotals: (year: number, month: number) => { incomeCents: Money; expenseCents: Money };
   getByDateRange: (from: string, to: string) => Transaction[];
+  getTopCategories: (year: number, month: number, limit?: number) => { name: string; amountCents: Money }[];
 }
 
 export const useTransactionStore = create<TransactionState>((set, get) => ({
@@ -72,5 +74,23 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     return transactions.filter(
       (t) => !t.deleted_at && t.date >= from && t.date <= to,
     );
+  },
+
+  getTopCategories: (year, month, limit = 5) => {
+    const { transactions } = get();
+    const prefix = `${year}-${String(month).padStart(2, '0')}`;
+    const totals: Record<string, number> = {};
+    for (const t of transactions) {
+      if (t.deleted_at || t.type !== 'expense' || !t.date.startsWith(prefix)) continue;
+      const key = t.category_id ?? '__sem_categoria__';
+      totals[key] = (totals[key] ?? 0) + t.amount_cents;
+    }
+    return Object.entries(totals)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, limit)
+      .map(([id, total]) => ({
+        name: CATEGORY_MAP[id]?.name ?? 'Outros',
+        amountCents: money(total),
+      }));
   },
 }));

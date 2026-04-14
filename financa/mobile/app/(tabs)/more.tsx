@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 import { Colors, Spacing, Typography } from '@/constants/theme';
@@ -86,7 +87,7 @@ export default function MoreScreen() {
         <View style={[styles.section, { flex: 1 }]}>
           <Text style={styles.sectionLabel}>BOT TELEGRAM</Text>
           <View style={styles.statusCard}>
-            <Text style={styles.statusIcon}>📤</Text>
+            <MaterialCommunityIcons name="send-circle-outline" size={28} color="#29B6F6" style={styles.statusIcon} />
             <View style={{ flex: 1 }}>
               <Text style={styles.statusTitle}>Status do Bot</Text>
               <Text style={styles.statusSub}>@financa_ledger_bot</Text>
@@ -102,7 +103,7 @@ export default function MoreScreen() {
         <View style={[styles.section, { flex: 1 }]}>
           <Text style={styles.sectionLabel}>SINCRONIZAÇÃO</Text>
           <View style={styles.statusCard}>
-            <Text style={styles.statusIcon}>🔄</Text>
+            <MaterialCommunityIcons name="cloud-sync-outline" size={28} color={Colors.primary} style={styles.statusIcon} />
             <View style={{ flex: 1 }}>
               <Text style={styles.statusTitle}>Cloud Ledger</Text>
               <Text style={styles.statusSub}>Uptime: 99.9%</Text>
@@ -232,7 +233,7 @@ const styles = StyleSheet.create({
   saveBtnText: { ...Typography.labelSm, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 2, color: Colors.onPrimary },
   twoColRow: { flexDirection: 'row', gap: Spacing.md },
   statusCard: { backgroundColor: Colors.surfaceLow, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  statusIcon: { fontSize: 18 },
+  statusIcon: {},
   statusTitle: { ...Typography.bodySm, fontWeight: '500' },
   statusSub: { ...Typography.labelSm, color: Colors.onSurfaceVariant, fontVariant: ['tabular-nums'] },
   statusIndicator: { flexDirection: 'row', alignItems: 'center', gap: 4 },

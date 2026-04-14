@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+financa/mobile/node_modules/
+
+# Expo
+financa/mobile/.expo/
+financa/mobile/dist/
+
+# Environment variables (NEVER commit these)
+.env
+financa/mobile/.env
+*.env.local
+*.env.production
+
+# Package lock (optional - remove if you want to track it)
+# financa/mobile/package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db

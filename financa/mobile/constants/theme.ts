@@ -71,7 +71,7 @@ export const Typography = {
   bodySm: { fontSize: 12, lineHeight: 16 },
   labelSm: { fontSize: 11, lineHeight: 16 },
   labelXs: { fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase' as const },
-  monoSm: { fontSize: 12, fontVariant: ['tabular-nums'] as const[] },
+  monoSm: { fontSize: 12, fontVariant: ['tabular-nums'] as ('tabular-nums')[] },
 } as const;
 
 /** Gradient for primary CTAs and hero cards */

@@ -1,5 +1,7 @@
-import { OPSQLiteConnection } from 'op-sqlite';
+import { Platform } from 'react-native';
 import { money, Money } from '@/lib/money';
+
+type AnyDB = { executeAsync: (sql: string, params?: unknown[]) => Promise<{ rows?: { _array?: Record<string, unknown>[] } }> };
 
 export interface DebtRow {
   id: string;
@@ -18,14 +20,16 @@ export interface DebtRow {
   deleted_at: string | null;
 }
 
-export async function getDebts(db: OPSQLiteConnection): Promise<DebtRow[]> {
+export async function getDebts(db: AnyDB): Promise<DebtRow[]> {
+  if (Platform.OS === 'web') return [];
   const result = await db.executeAsync(
     'SELECT * FROM debts WHERE deleted_at IS NULL ORDER BY current_balance_cents DESC',
   );
   return (result.rows?._array ?? []).map(mapDebtRow);
 }
 
-export async function upsertDebt(db: OPSQLiteConnection, row: DebtRow): Promise<void> {
+export async function upsertDebt(db: AnyDB, row: DebtRow): Promise<void> {
+  if (Platform.OS === 'web') return;
   await db.executeAsync(
     `INSERT OR REPLACE INTO debts
      (id, name, type, principal_cents, current_balance_cents, interest_rate_monthly,

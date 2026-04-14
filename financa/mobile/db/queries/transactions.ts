@@ -1,5 +1,8 @@
-import { OPSQLiteConnection } from 'op-sqlite';
+import { Platform } from 'react-native';
 import { money, Money } from '@/lib/money';
+
+// OPSQLiteConnection type without importing native module at top level
+type AnyDB = { executeAsync: (sql: string, params?: unknown[]) => Promise<{ rows?: { _array?: Record<string, unknown>[] } }> };
 
 export interface TransactionRow {
   id: string;
@@ -19,7 +22,7 @@ export interface TransactionRow {
 }
 
 export async function getTransactions(
-  db: OPSQLiteConnection,
+  db: AnyDB,
   opts: {
     accountId?: string;
     categoryId?: string;
@@ -30,6 +33,7 @@ export async function getTransactions(
     offset?: number;
   } = {},
 ): Promise<TransactionRow[]> {
+  if (Platform.OS === 'web') return [];
   const conditions: string[] = ['deleted_at IS NULL'];
   const params: unknown[] = [];
 
@@ -52,9 +56,10 @@ export async function getTransactions(
 }
 
 export async function insertTransaction(
-  db: OPSQLiteConnection,
+  db: AnyDB,
   row: TransactionRow,
 ): Promise<void> {
+  if (Platform.OS === 'web') return;
   await db.executeAsync(
     `INSERT OR REPLACE INTO transactions
      (id, account_id, category_id, amount_cents, type, description, date, notes,
@@ -70,10 +75,11 @@ export async function insertTransaction(
 }
 
 export async function getMonthlyTotals(
-  db: OPSQLiteConnection,
+  db: AnyDB,
   year: number,
   month: number,
 ): Promise<{ incomeCents: Money; expenseCents: Money }> {
+  if (Platform.OS === 'web') return { incomeCents: money(0), expenseCents: money(0) };
   const dateFrom = `${year}-${String(month).padStart(2, '0')}-01`;
   const dateTo = `${year}-${String(month).padStart(2, '0')}-31`;
 
@@ -89,8 +95,8 @@ export async function getMonthlyTotals(
   );
 
   return {
-    incomeCents: money(income.rows?._array?.[0]?.total ?? 0),
-    expenseCents: money(expense.rows?._array?.[0]?.total ?? 0),
+    incomeCents: money(income.rows?._array?.[0]?.total as number ?? 0),
+    expenseCents: money(expense.rows?._array?.[0]?.total as number ?? 0),
   };
 }
 
