@@ -172,7 +172,7 @@ EXPO_PUBLIC_DEVICE_ID=meu-celular-1
 > 3. Reinicie o container do backend: `docker compose up --build -d`
 > 4. Se quiser limpar o histórico do git para remover o token antigo, use `git filter-repo` ou contate o GitHub Support para apagar o cache. Mas o mais urgente é **rotacionar o token**.
 >
-> O token exposto é: `71e6841090150621062e99f8dd37c5876b81569d4cc7aa1d30a323b13b4ee2b6`
+> O token exposto está no commit `e773f58` (Initial commit) — visível no histórico do GitHub. Rotacione-o antes de qualquer uso.
 
 ---
 
