@@ -15,16 +15,16 @@ export function money(cents: number): Money {
 }
 
 /** Símbolo de moeda de ouro usado no display */
-export const GOLD_SYMBOL = '🪙';
+export const GOLD_SYMBOL = 'G';
 
-/** Format Money (cents) to Gold display, e.g. "🪙 1.234,56" */
+/** Format Money (cents) to Gold display, e.g. "1.234,56 G" */
 export function formatBRL(cents: Money | number, showSign = false): string {
   const reais = cents / 100;
   const formatted = new Intl.NumberFormat('pt-BR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(reais);
-  const result = `${GOLD_SYMBOL} ${formatted}`;
+  const result = `${formatted} G`;
   if (showSign && cents > 0) return `+${result}`;
   return result;
 }
@@ -32,13 +32,13 @@ export function formatBRL(cents: Money | number, showSign = false): string {
 /** Alias semântico para o tema RPG */
 export const formatGold = formatBRL;
 
-/** Format compact, e.g. 1234567 → "🪙 12.345,67" */
+/** Format compact, e.g. 1234567 → "12.345,67 G" */
 export function formatBRLShort(cents: Money): string {
   if (Math.abs(cents) >= 1_000_000_00) {
-    return `${GOLD_SYMBOL} ${(cents / 1_000_000_00).toFixed(1)}M`;
+    return `${(cents / 1_000_000_00).toFixed(1)}M G`;
   }
   if (Math.abs(cents) >= 1_000_00) {
-    return `${GOLD_SYMBOL} ${(cents / 1_000_00).toFixed(1)}k`;
+    return `${(cents / 1_000_00).toFixed(1)}k G`;
   }
   return formatBRL(cents);
 }

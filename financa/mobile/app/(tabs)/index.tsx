@@ -16,8 +16,18 @@ import { useDebtStore } from '@/store/debtStore';
 import { useGoalStore } from '@/store/goalStore';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { BarChart } from '@/components/charts/BarChart';
+import { RPGIcon } from '@/components/ui/RPGIcon';
 
 const MONTH_NAMES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+
+function CardTitle({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      {icon}
+      <Text style={styles.cardTitle}>{label}</Text>
+    </View>
+  );
+}
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -93,7 +103,10 @@ export default function DashboardScreen() {
       {/* Hero Card — Bolsa de Ouro */}
       <View style={styles.heroCard}>
         <View style={styles.heroCardInner}>
-          <Text style={styles.heroLabel}>⚔ BOLSA DE OURO</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <RPGIcon name="sword" size={18} />
+            <Text style={styles.heroLabel}>BOLSA DE OURO</Text>
+          </View>
           <Text style={[styles.heroAmount, { color: surplusCents >= 0 ? Colors.primary : Colors.tertiary }]}>
             {formatBRL(money(surplusCents))}
           </Text>
@@ -121,15 +134,15 @@ export default function DashboardScreen() {
       {/* Bento row — Fluxo de Magia + Reserva Real */}
       <View style={styles.bentoRow}>
         <View style={[styles.card, { flex: 2 }]}>
-          <Text style={styles.cardTitle}>📊 FLUXO DE MAGIA</Text>
+          <CardTitle icon={<RPGIcon name="potion_blue" size={18} />} label="FLUXO DE MAGIA" />
           <BarChart data={cashflowBars} height={120} />
         </View>
 
         <View style={[styles.card, { flex: 1 }]}>
-          <Text style={styles.cardTitle}>🏰 RESERVA REAL</Text>
+          <CardTitle icon={<RPGIcon name="shield" size={18} />} label="RESERVA REAL" />
           <Text style={styles.bigPct}>{Math.round(emergencyPct * 100)}%</Text>
           <Text style={styles.subLabel}>
-            Meta: {emergencyGoal ? formatBRL(money(emergencyGoal.target_cents)) : '🪙 0'}
+            Meta: {emergencyGoal ? formatBRL(money(emergencyGoal.target_cents)) : '0,00 G'}
           </Text>
           <ProgressBar progress={emergencyPct} color={Colors.primary} height={6} />
         </View>
@@ -137,7 +150,7 @@ export default function DashboardScreen() {
 
       {/* Ordens de Compra (top categorias) */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>🛒 ORDENS DE COMPRA</Text>
+        <CardTitle icon={<RPGIcon name="chest" size={18} />} label="ORDENS DE COMPRA" />
         {topCategories.length === 0 ? (
           <Text style={styles.emptyHint}>Nenhuma ordem registrada este mês.</Text>
         ) : (
@@ -157,7 +170,7 @@ export default function DashboardScreen() {
 
       {/* Dívidas ao Ferreiro */}
       <TouchableOpacity style={styles.card} onPress={() => router.push('/debts')}>
-        <Text style={styles.cardTitle}>⚒ DÍVIDAS AO FERREIRO</Text>
+        <CardTitle icon={<RPGIcon name="trident" size={18} />} label="DÍVIDAS AO FERREIRO" />
         <View style={styles.debtRow}>
           <Text style={styles.debtLabel}>Títulos de guerra</Text>
           <Text style={styles.debtValue}>{activeDebts.length} contratos</Text>
