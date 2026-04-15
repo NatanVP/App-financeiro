@@ -5,10 +5,12 @@
 import React, { useState } from 'react';
 import {
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -19,15 +21,23 @@ import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { money, Money } from '@/lib/money';
 import { NumPad } from '@/components/ui/NumPad';
+import { CATEGORIES } from '@/constants/categories';
+import { useTransactionStore } from '@/store/transactionStore';
+import { useAccountStore } from '@/store/accountStore';
 
 type TxType = 'expense' | 'income' | 'transfer';
-import { CATEGORIES } from '@/constants/categories';
 
 export default function NewTransactionScreen() {
   const insets = useSafeAreaInsets();
   const [txType, setTxType] = useState<TxType>('expense');
   const [amountInput, setAmountInput] = useState('0');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [description, setDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const { addTransaction } = useTransactionStore();
+  const { getActiveAccounts } = useAccountStore();
+  const accounts = getActiveAccounts();
 
   const handleNumPad = (key: string) => {
     if (key === '⌫') {
@@ -59,14 +69,57 @@ export default function NewTransactionScreen() {
     return money(Math.round(val * 100));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const cents = getAmountCents();
     if (cents <= 0) {
       Alert.alert('Valor inválido', 'Digite um valor maior que zero.');
       return;
     }
-    // TODO: persist to SQLite and queue for sync
-    router.back();
+    if (!description.trim()) {
+      Alert.alert('Descrição obrigatória', 'Informe uma descrição para a transação.');
+      return;
+    }
+
+    const accountId = accounts[0]?.id ?? 'default';
+    const now = new Date().toISOString();
+    const today = now.slice(0, 10);
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+    const tx = {
+      id,
+      account_id: accountId,
+      category_id: selectedCategory,
+      amount_cents: cents,
+      type: txType,
+      description: description.trim(),
+      date: today,
+      notes: null,
+      transfer_to_account_id: null,
+      is_reconciled: false,
+      device_id: process.env.EXPO_PUBLIC_DEVICE_ID ?? null,
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+    };
+
+    setSaving(true);
+    try {
+      // Salva no SQLite (nativo) se disponível
+      if (Platform.OS !== 'web') {
+        const { insertTransaction } = await import('@/db/queries/transactions');
+        const { open } = await import('@op-engineering/op-sqlite');
+        const db = open({ name: 'financa.db' });
+        await insertTransaction(db, tx);
+      }
+      // Atualiza a store em memória
+      addTransaction(tx);
+      router.back();
+    } catch (e) {
+      Alert.alert('Erro', 'Não foi possível salvar a transação.');
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const typeColors: Record<TxType, string> = {
@@ -171,12 +224,25 @@ export default function NewTransactionScreen() {
             </View>
           </View>
 
+          {/* Descrição */}
+          <View>
+            <Text style={styles.fieldLabel}>DESCRIÇÃO</Text>
+            <TextInput
+              style={styles.descInput}
+              placeholder="Ex: Mercado, Aluguel..."
+              placeholderTextColor={`${Colors.onSurfaceVariant}60`}
+              value={description}
+              onChangeText={setDescription}
+              maxLength={60}
+            />
+          </View>
+
           {/* NumPad */}
           <NumPad onPress={handleNumPad} />
 
           {/* Save button */}
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-            <Text style={styles.saveBtnText}>SALVAR TRANSAÇÃO</Text>
+          <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving}>
+            <Text style={styles.saveBtnText}>{saving ? 'SALVANDO...' : 'SALVAR TRANSAÇÃO'}</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -221,6 +287,17 @@ const styles = StyleSheet.create({
   nuDot: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#820AD1', alignItems: 'center', justifyContent: 'center' },
   nuLetter: { color: 'white', fontSize: 8, fontWeight: '700' },
   selectText: { flex: 1, fontSize: 12, fontWeight: '500', color: Colors.onSurface },
-  saveBtn: { backgroundColor: Colors.primary, height: 56, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg },
-  saveBtnText: { fontSize: 13, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 2, color: Colors.onPrimary },
+  descInput: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: 'VT323',
+    fontSize: 16,
+    color: Colors.onSurface,
+    borderRadius: 0,
+  },
+  saveBtn: { backgroundColor: Colors.primary, height: 56, borderRadius: 0, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg },
+  saveBtnText: { fontFamily: 'VT323', fontSize: 18, textTransform: 'uppercase', letterSpacing: 2, color: Colors.onPrimary },
 });

@@ -81,39 +81,35 @@ export default function MoreScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Telegram & Sync */}
-      <View style={styles.twoColRow}>
-        {/* Telegram */}
-        <View style={[styles.section, { flex: 1 }]}>
-          <Text style={styles.sectionLabel}>BOT TELEGRAM</Text>
-          <View style={styles.statusCard}>
-            <MaterialCommunityIcons name="send-circle-outline" size={28} color="#29B6F6" style={styles.statusIcon} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.statusTitle}>Status do Bot</Text>
-              <Text style={styles.statusSub}>@FiireKeeperBot</Text>
-            </View>
-            <View style={styles.statusIndicator}>
-              <View style={styles.greenDot} />
-              <Text style={styles.statusLabel}>Ativo</Text>
-            </View>
+      {/* Telegram */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>BOT TELEGRAM</Text>
+        <View style={styles.statusCard}>
+          <MaterialCommunityIcons name="send-circle-outline" size={28} color="#29B6F6" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.statusTitle}>@FiireKeeperBot</Text>
+          </View>
+          <View style={styles.statusIndicator}>
+            <View style={styles.greenDot} />
+            <Text style={styles.statusLabel}>ATIVO</Text>
           </View>
         </View>
+      </View>
 
-        {/* Sync */}
-        <View style={[styles.section, { flex: 1 }]}>
-          <Text style={styles.sectionLabel}>SINCRONIZAÇÃO</Text>
-          <View style={styles.statusCard}>
-            <MaterialCommunityIcons name="cloud-sync-outline" size={28} color={Colors.primary} style={styles.statusIcon} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.statusTitle}>Cloud Ledger</Text>
-              <Text style={styles.statusSub}>Uptime: 99.9%</Text>
-            </View>
-            <View>
-              <Text style={styles.statusLabelRight}>Sincronizado</Text>
-              <Text style={styles.statusDate}>
-                {lastSyncAt ? new Date(lastSyncAt).toLocaleDateString('pt-BR') : '—'}
-              </Text>
-            </View>
+      {/* Sync */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>SINCRONIZAÇÃO</Text>
+        <View style={styles.statusCard}>
+          <MaterialCommunityIcons name="cloud-sync-outline" size={28} color={Colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.statusTitle}>Cloud Ledger</Text>
+            <Text style={styles.statusSub}>Uptime: 99.9%</Text>
+          </View>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={styles.statusLabel}>SINCRONIZADO</Text>
+            <Text style={styles.statusDate}>
+              {lastSyncAt ? new Date(lastSyncAt).toLocaleDateString('pt-BR') : '—'}
+            </Text>
           </View>
         </View>
       </View>
@@ -231,16 +227,13 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { ...Typography.labelSm, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 2, color: Colors.onPrimary },
-  twoColRow: { flexDirection: 'row', gap: Spacing.md },
-  statusCard: { backgroundColor: Colors.surfaceLow, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  statusIcon: {},
-  statusTitle: { ...Typography.bodySm, fontWeight: '500' },
-  statusSub: { ...Typography.labelSm, color: Colors.onSurfaceVariant, fontVariant: ['tabular-nums'] },
+  statusCard: { backgroundColor: Colors.surfaceLow, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  statusTitle: { ...Typography.bodySm, fontWeight: '500', color: Colors.onSurface },
+  statusSub: { ...Typography.labelSm, color: Colors.onSurfaceVariant },
   statusIndicator: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   greenDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.secondary },
-  statusLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', color: Colors.secondary },
-  statusLabelRight: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', color: Colors.onSurface, opacity: 0.9, textAlign: 'right' },
-  statusDate: { ...Typography.labelSm, color: Colors.onSurfaceVariant, fontVariant: ['tabular-nums'], textAlign: 'right' },
+  statusLabel: { fontFamily: 'VT323', fontSize: 13, textTransform: 'uppercase', letterSpacing: 1, color: Colors.secondary },
+  statusDate: { fontFamily: 'VT323', fontSize: 12, color: Colors.onSurfaceVariant, textAlign: 'right' },
   menuItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm },
   menuItemAdvanced: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm },
   menuItemText: { ...Typography.bodySm, color: Colors.onSurface },
