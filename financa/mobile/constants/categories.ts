@@ -9,13 +9,13 @@ export interface Category {
 }
 
 export const CATEGORIES: Category[] = [
-  { id: '1', name: 'Mercado',     icon: 'cart-outline' },
-  { id: '2', name: 'Gasolina',   icon: 'gas-station-outline' },
-  { id: '3', name: 'Aluguel',    icon: 'home-outline' },
-  { id: '4', name: 'Lazer',      icon: 'movie-open-outline' },
-  { id: '5', name: 'Saúde',      icon: 'pill' },
-  { id: '6', name: 'Transporte', icon: 'bus-outline' },
-  { id: '7', name: 'Salário',    icon: 'cash-multiple' },
+  { id: '1', name: 'Armazém',    icon: 'storefront-outline' },    // Mercado
+  { id: '2', name: 'Estábulo',   icon: 'horse' },                  // Gasolina
+  { id: '3', name: 'Taverna',    icon: 'home-outline' },          // Aluguel/Moradia
+  { id: '4', name: 'Arena',      icon: 'sword-cross' },           // Lazer/Entretenimento
+  { id: '5', name: 'Alquimia',   icon: 'flask-outline' },         // Saúde/Poções
+  { id: '6', name: 'Caravana',   icon: 'transit-connection-variant' }, // Transporte/Viagem
+  { id: '7', name: 'Recompensa', icon: 'seal-variant' },          // Salário/Income
 ];
 
 export const CATEGORY_MAP: Record<string, Category> = Object.fromEntries(

@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
 import { router } from 'expo-router';
 
@@ -10,17 +10,17 @@ type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {
   const icons: Record<string, MCIName> = {
-    index:        'view-dashboard-outline',
-    transactions: 'swap-horizontal',
-    goals:        'flag-checkered',
-    more:         'dots-horizontal-circle-outline',
+    index:        'shield-home-outline',    // Guilda / Dashboard
+    transactions: 'book-open-page-variant-outline', // Crônicas
+    goals:        'flag-checkered',         // Missões
+    more:         'treasure-chest',          // Bolsa / Tesouro
   };
   const icon = icons[name] ?? 'circle-outline';
   return (
     <MaterialCommunityIcons
       name={icon}
       size={22}
-      color={focused ? Colors.primary : `${Colors.primaryText}60`}
+      color={focused ? Colors.primary : `${Colors.onSurface}50`}
     />
   );
 }
@@ -33,19 +33,19 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: `${Colors.background}CC`,
-          borderTopColor: `${Colors.primaryText}25`,
-          borderTopWidth: 1,
+          backgroundColor: Colors.surfaceHighest,
+          borderTopColor: Colors.outline,
+          borderTopWidth: 2,
           height: 56 + insets.bottom,
           paddingBottom: insets.bottom,
         },
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: `${Colors.primaryText}60`,
+        tabBarInactiveTintColor: `${Colors.onSurface}50`,
         tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '500',
+          fontFamily: 'VT323',
+          fontSize: 11,
           textTransform: 'uppercase',
-          letterSpacing: 1.5,
+          letterSpacing: 1,
           marginTop: 2,
         },
       }}
@@ -53,19 +53,19 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Início',
+          title: 'Guilda',
           tabBarIcon: ({ focused }) => <TabBarIcon name="index" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="transactions"
         options={{
-          title: 'Transações',
+          title: 'Crônicas',
           tabBarIcon: ({ focused }) => <TabBarIcon name="transactions" focused={focused} />,
         }}
       />
 
-      {/* FAB spacer */}
+      {/* FAB — Ação de guerra (espada) */}
       <Tabs.Screen
         name="fab-spacer"
         options={{
@@ -76,7 +76,7 @@ export default function TabsLayout() {
               onPress={() => router.push('/new-transaction')}
               activeOpacity={0.8}
             >
-              <Ionicons name="add" size={26} color={Colors.onPrimary} />
+              <MaterialCommunityIcons name="sword" size={24} color={Colors.onPrimary} />
             </TouchableOpacity>
           ),
         }}
@@ -85,14 +85,14 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="goals"
         options={{
-          title: 'Metas',
+          title: 'Missões',
           tabBarIcon: ({ focused }) => <TabBarIcon name="goals" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="more"
         options={{
-          title: 'Mais',
+          title: 'Bolsa',
           tabBarIcon: ({ focused }) => <TabBarIcon name="more" focused={focused} />,
         }}
       />
@@ -102,17 +102,19 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   fab: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 50,
+    height: 50,
+    borderRadius: 0,       // pixel art: sem arredondamento
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -16,
-    elevation: 4,
+    marginTop: -18,
+    borderWidth: 2,
+    borderColor: Colors.onPrimaryContainer,
+    elevation: 6,
     shadowColor: Colors.primary,
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
   },
 });

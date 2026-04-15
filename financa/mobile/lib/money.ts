@@ -14,41 +14,48 @@ export function money(cents: number): Money {
   return cents as Money;
 }
 
-/** Format Money (cents) to Brazilian Real string, e.g. "R$ 1.234,56" */
-export function formatBRL(cents: Money, showSign = false): string {
+/** Símbolo de moeda de ouro usado no display */
+export const GOLD_SYMBOL = '🪙';
+
+/** Format Money (cents) to Gold display, e.g. "🪙 1.234,56" */
+export function formatBRL(cents: Money | number, showSign = false): string {
   const reais = cents / 100;
   const formatted = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
     minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(reais);
-  if (showSign && cents > 0) return `+${formatted}`;
-  return formatted;
+  const result = `${GOLD_SYMBOL} ${formatted}`;
+  if (showSign && cents > 0) return `+${result}`;
+  return result;
 }
 
-/** Format compact, e.g. 1234567 → "R$ 12.345,67" */
+/** Alias semântico para o tema RPG */
+export const formatGold = formatBRL;
+
+/** Format compact, e.g. 1234567 → "🪙 12.345,67" */
 export function formatBRLShort(cents: Money): string {
   if (Math.abs(cents) >= 1_000_000_00) {
-    return `R$ ${(cents / 1_000_000_00).toFixed(1)}M`;
+    return `${GOLD_SYMBOL} ${(cents / 1_000_000_00).toFixed(1)}M`;
   }
   if (Math.abs(cents) >= 1_000_00) {
-    return `R$ ${(cents / 1_000_00).toFixed(1)}k`;
+    return `${GOLD_SYMBOL} ${(cents / 1_000_00).toFixed(1)}k`;
   }
   return formatBRL(cents);
 }
 
 /**
  * Parse a BRL string to Money (cents).
- * Handles: "R$ 1.234,56", "1234,56", "1234.56"
+ * Handles: "R$ 1.234,56", "🪙 1.234,56", "1234,56", "1234.56"
  */
 export function parseBRL(input: string): Money {
   const cleaned = input
+    .replace(/🪙\s?/, '')
     .replace(/R\$\s?/, '')
-    .replace(/\./g, '')     // remove thousands dots
-    .replace(',', '.')       // decimal comma → dot
+    .replace(/\./g, '')
+    .replace(',', '.')
     .trim();
   const value = parseFloat(cleaned);
-  if (isNaN(value)) throw new Error(`Cannot parse BRL: "${input}"`);
+  if (isNaN(value)) throw new Error(`Cannot parse value: "${input}"`);
   return money(Math.round(value * 100));
 }
 

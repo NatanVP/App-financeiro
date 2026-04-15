@@ -1,49 +1,55 @@
 /**
- * Design tokens extracted from the Finança Ledger design system (DESIGN.md).
- * All colors are the authoritative source for the React Native app.
+ * Design tokens — The Sovereign's Ledger (RPG theme)
+ * Paleta medieval: terra escura, ouro, escarlate, pergaminho
  */
 
 export const Colors = {
-  // Surface layers (dark → light)
-  surfaceLowest: '#0E0E10',
-  surfaceLow: '#1B1B1D',
-  surface: '#201F21',
-  surfaceHigh: '#2A2A2C',
-  surfaceHighest: '#353437',
-  background: '#131315',
+  // Surface layers (terra → mesa → pergaminho)
+  surfaceLowest: '#170C00',
+  surfaceLow: '#1D1101',
+  surface: '#271904',
+  surfaceHigh: '#2B1D07',
+  surfaceHighest: '#362710',
+  background: '#1D1101',
 
-  // Brand accents
-  primary: '#C0C1FF',
-  primaryContainer: '#8083FF',
-  onPrimary: '#1000A9',
-  onPrimaryContainer: '#0D0096',
+  // Ouro (primary)
+  primary: '#FFD700',
+  primaryContainer: '#FFE16D',
+  onPrimary: '#3A3000',
+  onPrimaryContainer: '#221B00',
 
-  // Positive / income
-  secondary: '#69DC99',
-  secondaryFixed: '#86F9B3',
-  secondaryContainer: '#29A467',
-  onSecondary: '#00391E',
-  onSecondaryFixedVariant: '#00522E',
+  // Verde floresta (receita/positivo)
+  secondary: '#4CAF50',
+  secondaryFixed: '#A5D6A7',
+  secondaryContainer: '#2D5A27',
+  onSecondary: '#002108',
+  onSecondaryFixedVariant: '#1E3E1A',
 
-  // Negative / alerts
-  tertiary: '#FFB3AE',
-  tertiaryFixed: '#FFDAD7',
-  tertiaryContainer: '#EF635E',
-  onTertiary: '#68000B',
-  onTertiaryFixed: '#410004',
+  // Escarlate (dívidas/perigo)
+  tertiary: '#FFB4A8',
+  tertiaryFixed: '#FFDAD4',
+  tertiaryContainer: '#920703',
+  onTertiary: '#690000',
+  onTertiaryFixed: '#410000',
 
-  // Text
-  onSurface: '#E5E1E4',
-  onSurfaceVariant: '#C7C4D7',
-  primaryText: '#F2F2F5',  // Use instead of pure white
+  // Texto (pergaminho)
+  onSurface: '#FADEBC',
+  onSurfaceVariant: '#D0C6AB',
+  primaryText: '#F5DEB3',
 
-  // Outline
-  outline: '#908FA0',
-  outlineVariant: '#464554',
+  // Contorno dourado envelhecido
+  outline: '#999077',
+  outlineVariant: '#4D4732',
 
-  // Error
+  // Erro
   error: '#FFB4AB',
   errorContainer: '#93000A',
+
+  // Surface alias para compatibilidade
+  surfaceBright: '#47361E',
+  surfaceContainer: '#2B1D07',
+  surfaceContainerHigh: '#362710',
+  surfaceContainerHighest: '#42321A',
 } as const;
 
 export const Spacing = {
@@ -57,26 +63,26 @@ export const Spacing = {
 
 export const BorderRadius = {
   none: 0,
-  sm: 2,   // DEFAULT
-  md: 4,   // lg
-  lg: 8,   // xl
-  full: 12, // full
+  sm: 0,  // pixel art: sem arredondamento
+  md: 2,
+  lg: 4,  // máximo permitido
+  full: 4,
 } as const;
 
 export const Typography = {
-  displaySm: { fontSize: 36, fontWeight: '900' as const, letterSpacing: -1.5 },
-  headlineSm: { fontSize: 24, fontWeight: '700' as const, letterSpacing: -0.5 },
-  titleMd: { fontSize: 16, fontWeight: '600' as const },
-  titleSm: { fontSize: 14, fontWeight: '600' as const },
-  bodySm: { fontSize: 12, lineHeight: 16 },
-  labelSm: { fontSize: 11, lineHeight: 16 },
-  labelXs: { fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase' as const },
-  monoSm: { fontSize: 12, fontVariant: ['tabular-nums'] as ('tabular-nums')[] },
+  displaySm:  { fontFamily: 'VT323' as string, fontSize: 40, letterSpacing: 1 },
+  headlineSm: { fontFamily: 'VT323' as string, fontSize: 28, letterSpacing: 0 },
+  titleMd:    { fontFamily: 'VT323' as string, fontSize: 20 },
+  titleSm:    { fontFamily: 'VT323' as string, fontSize: 16 },
+  bodySm:     { fontFamily: 'VT323' as string, fontSize: 14, lineHeight: 18 },
+  labelSm:    { fontFamily: 'VT323' as string, fontSize: 12, textTransform: 'uppercase' as const },
+  labelXs:    { fontFamily: 'VT323' as string, fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase' as const },
+  monoSm:     { fontFamily: 'VT323' as string, fontSize: 14, fontVariant: ['tabular-nums'] as ('tabular-nums')[] },
 } as const;
 
-/** Gradient for primary CTAs and hero cards */
+/** Gradiente dourado para CTAs e hero cards */
 export const PrimaryGradient = {
-  colors: [Colors.primary, Colors.primaryContainer] as [string, string],
+  colors: ['#FFE16D', '#B8860B'] as [string, string],
   start: { x: 0, y: 0 },
   end: { x: 1, y: 1 },
 } as const;

@@ -1,12 +1,29 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Platform, View } from 'react-native';
+import * as Font from 'expo-font';
 import { Colors } from '@/constants/theme';
 
 export default function RootLayout() {
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+
   useEffect(() => {
-    // SQLite is not available on web
+    (async () => {
+      try {
+        await Font.loadAsync({
+          VT323: require('../assets/fonts/VT323-Regular.ttf'),
+        });
+      } catch (e) {
+        // Fonte não encontrada — app continua com fallback do sistema
+        console.warn('Font VT323 not loaded:', e);
+      } finally {
+        setFontsLoaded(true);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
     if (Platform.OS === 'web') return;
     (async () => {
       try {
@@ -19,6 +36,10 @@ export default function RootLayout() {
       }
     })();
   }, []);
+
+  if (!fontsLoaded) {
+    return <View style={{ flex: 1, backgroundColor: Colors.background }} />;
+  }
 
   return (
     <>

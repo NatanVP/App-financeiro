@@ -522,7 +522,7 @@ Todas requerem: `Authorization: Bearer <API_TOKEN>`
 
 ---
 
-## 13. Status Atual (2026-04-14)
+## 13. Status Atual (2026-04-15)
 
 - [x] Backend deployado e rodando na VPS (`89.117.32.220:8000`)
 - [x] PostgreSQL rodando com migrations aplicadas
@@ -535,16 +535,49 @@ Todas requerem: `Authorization: Bearer <API_TOKEN>`
 - [x] App mobile rodando no web sem erros de bundle (`npx expo start --web --clear` compila e serve em `localhost:8081`)
 - [x] Dependências web instaladas: `expo-linking`, `react-native-svg`, `react-dom`, `react-native-web`
 - [x] Imports de `@op-engineering/op-sqlite` protegidos com `Platform.OS !== 'web'` + dynamic import
-- [x] Emojis substituídos por `@expo/vector-icons` (MaterialCommunityIcons + Ionicons)
 - [x] `constants/categories.ts` — fonte única de categorias compartilhada entre telas
 - [x] Dashboard "Maiores Categorias" conectado a dados reais via `getTopCategories` na store
 - [x] Integração backend testada end-to-end (ver seção 14)
 - [x] Categorias do sistema confirmadas no backend (23 categorias seed)
 - [x] Conta criada via API, transação criada via API, sync pull/push funcionando
 - [x] Fluxo Telegram → OpenClaw → Backend testado e confirmado (ver seção 14.9)
-- [ ] EAS Build do APK
+- [x] EAS Build do APK gerado e instalado no celular físico
+- [x] **Redesign RPG/Medieval aplicado** (2026-04-15) — ver seção 15
 - [ ] Sync mobile ↔ VPS testado end-to-end no app
 - [ ] Dados reais de uso diário cadastrados (salário, despesas fixas, dívidas reais)
+- [ ] Rotacionar API token exposto no histórico do git (commit `e773f58`)
+
+---
+
+## 15. Redesign RPG Medieval (2026-04-15)
+
+Tema "The Sovereign's Ledger" — pixel art com estética RPG Maker medieval.
+
+### Arquivos alterados
+| Arquivo | Mudança |
+|---|---|
+| `constants/theme.ts` | Paleta RPG: fundo terra (`#1D1101`), ouro (`#FFD700`), escarlate, pergaminho (`#FADEBC`). Bordas 0–4px (sem arredondamento). Tipografia VT323. |
+| `constants/categories.ts` | Categorias renomeadas: Armazém, Estábulo, Taverna, Arena, Alquimia, Caravana, Recompensa |
+| `lib/money.ts` | `formatBRL` agora retorna `🪙 1.234,56` em vez de `R$ 1.234,56` — muda display em todo o app sem alterar lógica de centavos |
+| `components/ui/PixelBorder.tsx` | Novo componente: borda dupla estilo menu RPG (outer escuro + inner dourado) |
+| `assets/fonts/VT323-Regular.ttf` | Fonte pixel adicionada (Google Fonts VT323) |
+| `app/_layout.tsx` | Carrega VT323 via `expo-font` antes de renderizar |
+| `app/(tabs)/_layout.tsx` | Tab bar com borda dourada; ícones medievais; FAB vira espada quadrada; labels: Guilda, Crônicas, Missões, Bolsa |
+| `app/(tabs)/index.tsx` | Dashboard com nomenclatura RPG: "Bolsa de Ouro", "Fluxo de Magia", "Ordens de Compra", "Reserva Real", "Dívidas ao Ferreiro" |
+
+### Nomenclatura RPG (referência rápida)
+| Original | RPG |
+|---|---|
+| R$ / Reais | 🪙 (moeda de ouro) |
+| Saldo disponível | Bolsa de Ouro |
+| Dívidas ativas | Dívidas ao Ferreiro |
+| Maiores categorias | Ordens de Compra |
+| Reserva de emergência | Reserva Real |
+| Fluxo de caixa | Fluxo de Magia |
+| Metas | Missões |
+| Dashboard | Guilda |
+| Transações | Crônicas |
+| Configurações | Bolsa |
 
 ---
 
