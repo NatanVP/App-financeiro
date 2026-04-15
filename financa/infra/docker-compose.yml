@@ -32,9 +32,19 @@ services:
         condition: service_healthy
     networks:
       - financa
-      - openclaw          # visível para o OpenClaw por nome: http://financa-backend:8000
+      - openclaw          # visível para o OpenClaw por nome: http://infra-backend-1:8000
+      - traefik           # Traefik faz proxy HTTPS → container:8000
     ports:
-      - "0.0.0.0:8000:8000"   # app mobile acessa via IP público da VPS
+      - "127.0.0.1:8000:8000"   # somente localhost — debug; internet usa HTTPS via Traefik
+    labels:
+      - "traefik.enable=true"
+      # Rota HTTPS: https://<DOMAIN>/api/** → backend (strip /api prefix)
+      - "traefik.http.routers.financa-api.rule=Host(`${DOMAIN:?DOMAIN not set}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.financa-api.entrypoints=websecure"
+      - "traefik.http.routers.financa-api.tls.certresolver=letsencrypt"
+      - "traefik.http.middlewares.financa-strip.stripprefix.prefixes=/api"
+      - "traefik.http.routers.financa-api.middlewares=financa-strip"
+      - "traefik.http.services.financa-api.loadbalancer.server.port=8000"
 
 volumes:
   postgres_data:
@@ -45,3 +55,6 @@ networks:
   openclaw:
     external: true
     name: openclaw-clgu_default   # rede existente do OpenClaw
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik-proxy}   # rede padrão do Hostinger Docker Manager

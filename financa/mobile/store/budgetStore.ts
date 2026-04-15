@@ -18,6 +18,7 @@ interface BudgetState {
   deleteBudget: (id: string) => void;
   getBudgetsForMonth: (yearMonth: string) => Budget[];
   getActiveBudgets: () => Budget[];  // current month
+  copyFromPreviousMonth: (targetMonth: string, sourceMonth: string) => void;
 }
 
 function currentYearMonth(): string {
@@ -48,4 +49,23 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     get().budgets.filter((b) => !b.deleted_at && b.year_month === yearMonth),
   getActiveBudgets: () =>
     get().getBudgetsForMonth(currentYearMonth()),
+
+  copyFromPreviousMonth: (targetMonth, sourceMonth) => {
+    const sourceBudgets = get().getBudgetsForMonth(sourceMonth);
+    const targetBudgets = get().getBudgetsForMonth(targetMonth);
+    const targetCategoryIds = new Set(targetBudgets.map((b) => b.category_id));
+    const now = new Date().toISOString();
+    for (const budget of sourceBudgets) {
+      if (!targetCategoryIds.has(budget.category_id)) {
+        get().upsertBudget({
+          ...budget,
+          id: `budget-${budget.category_id}-${targetMonth}-${Date.now()}`,
+          year_month: targetMonth,
+          created_at: now,
+          updated_at: now,
+          deleted_at: null,
+        });
+      }
+    }
+  },
 }));

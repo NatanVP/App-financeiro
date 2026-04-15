@@ -35,7 +35,7 @@ async def monthly_summary(
             Transaction.deleted_at.is_(None),
         )
     )
-    income_cents: int = income_result.scalar() or 0
+    income_cents: int = int(income_result.scalar() or 0)
 
     # Expenses
     expense_result = await db.execute(
@@ -46,7 +46,7 @@ async def monthly_summary(
             Transaction.deleted_at.is_(None),
         )
     )
-    expense_cents: int = expense_result.scalar() or 0
+    expense_cents: int = int(expense_result.scalar() or 0)
 
     surplus_cents = compute_surplus(income_cents, expense_cents)
 

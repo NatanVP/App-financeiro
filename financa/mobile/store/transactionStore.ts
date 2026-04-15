@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { money, Money } from '@/lib/money';
 import { CATEGORY_MAP } from '@/constants/categories';
+import { useCategoryStore } from '@/store/categoryStore';
 
 export interface Transaction {
   id: string;
@@ -85,11 +86,12 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       const key = t.category_id ?? '__sem_categoria__';
       totals[key] = (totals[key] ?? 0) + t.amount_cents;
     }
+    const { getCategoryName } = useCategoryStore.getState();
     return Object.entries(totals)
       .sort(([, a], [, b]) => b - a)
       .slice(0, limit)
       .map(([id, total]) => ({
-        name: CATEGORY_MAP[id]?.name ?? 'Outros',
+        name: getCategoryName(id),
         amountCents: money(total),
       }));
   },

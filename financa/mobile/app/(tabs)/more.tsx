@@ -90,7 +90,7 @@ export default function MoreScreen() {
             <MaterialCommunityIcons name="send-circle-outline" size={28} color="#29B6F6" style={styles.statusIcon} />
             <View style={{ flex: 1 }}>
               <Text style={styles.statusTitle}>Status do Bot</Text>
-              <Text style={styles.statusSub}>@financa_ledger_bot</Text>
+              <Text style={styles.statusSub}>@FiireKeeperBot</Text>
             </View>
             <View style={styles.statusIndicator}>
               <View style={styles.greenDot} />

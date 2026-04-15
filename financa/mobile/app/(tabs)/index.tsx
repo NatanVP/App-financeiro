@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 import { Colors, Spacing, Typography } from '@/constants/theme';
+import { performSync } from '@/lib/syncActions';
 import { formatBRL, money } from '@/lib/money';
 import { useTransactionStore } from '@/store/transactionStore';
 import { useDebtStore } from '@/store/debtStore';
@@ -54,8 +55,13 @@ export default function DashboardScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // TODO: trigger sync
-    setTimeout(() => setRefreshing(false), 1000);
+    try {
+      await performSync();
+    } catch {
+      // error state already set in useSyncStore
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (
