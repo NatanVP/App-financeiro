@@ -527,24 +527,29 @@ Todas requerem: `Authorization: Bearer <API_TOKEN>`
 - [x] Backend deployado e rodando na VPS (`89.117.32.220:8000`)
 - [x] PostgreSQL rodando com migrations aplicadas
 - [x] OpenClaw integrado com skill `financa` — comandos via Telegram funcionando
-- [x] `.env` mobile configurado com IP da VPS
 - [x] Pacote `op-sqlite` renomeado para `@op-engineering/op-sqlite` em todo o projeto
-- [x] `utils/money.ts` criado
-- [x] `services/api.ts` criado
-- [x] `store/accountStore.ts` criado
-- [x] App mobile rodando no web sem erros de bundle (`npx expo start --web --clear` compila e serve em `localhost:8081`)
-- [x] Dependências web instaladas: `expo-linking`, `react-native-svg`, `react-dom`, `react-native-web`
+- [x] `utils/money.ts`, `services/api.ts`, `store/accountStore.ts` criados
+- [x] App mobile rodando no web (`npx expo start --web --clear` → `localhost:8081`)
 - [x] Imports de `@op-engineering/op-sqlite` protegidos com `Platform.OS !== 'web'` + dynamic import
-- [x] `constants/categories.ts` — fonte única de categorias compartilhada entre telas
-- [x] Dashboard "Maiores Categorias" conectado a dados reais via `getTopCategories` na store
+- [x] `constants/categories.ts` — fonte única de categorias
+- [x] Dashboard conectado a dados reais via stores
 - [x] Integração backend testada end-to-end (ver seção 14)
-- [x] Categorias do sistema confirmadas no backend (23 categorias seed)
-- [x] Conta criada via API, transação criada via API, sync pull/push funcionando
-- [x] Fluxo Telegram → OpenClaw → Backend testado e confirmado (ver seção 14.9)
+- [x] Fluxo Telegram → OpenClaw → Backend confirmado (ver seção 14.9)
 - [x] EAS Build do APK gerado e instalado no celular físico
-- [x] **Redesign RPG/Medieval aplicado** (2026-04-15) — ver seção 15
+- [x] **Redesign RPG/Medieval aplicado** — ver seção 15
+- [x] Ícones pixel art (Kenney Tiny Dungeon CC0) substituindo emojis do sistema
+- [x] NumPad corrigido (bug gap+width% → rows com flex:1)
+- [x] `new-transaction`: salva de verdade no SQLite local + store Zustand
+- [x] Campo descrição adicionado ao formulário de nova transação
+- [x] Ícone do app configurado (`Goblin_Finance.png`)
+- [x] Variáveis de ambiente migradas para EAS Secrets (sem `.env` no build)
+  - `EXPO_PUBLIC_API_BASE_URL` — plaintext
+  - `EXPO_PUBLIC_DEVICE_ID` — plaintext
+  - `EXPO_PUBLIC_API_TOKEN` — sensitive
+- [x] `@op-engineering/op-sqlite` removido dos plugins do `app.json` (não tem config plugin — linka automaticamente)
+- [ ] EAS Build `preview` com novo tema RPG e ícone
 - [ ] Sync mobile ↔ VPS testado end-to-end no app
-- [ ] Dados reais de uso diário cadastrados (salário, despesas fixas, dívidas reais)
+- [ ] Dados reais cadastrados (salário, despesas fixas, dívidas reais)
 - [ ] Rotacionar API token exposto no histórico do git (commit `e773f58`)
 
 ---
@@ -558,7 +563,7 @@ Tema "The Sovereign's Ledger" — pixel art com estética RPG Maker medieval.
 |---|---|
 | `constants/theme.ts` | Paleta RPG: fundo terra (`#1D1101`), ouro (`#FFD700`), escarlate, pergaminho (`#FADEBC`). Bordas 0–4px (sem arredondamento). Tipografia VT323. |
 | `constants/categories.ts` | Categorias renomeadas: Armazém, Estábulo, Taverna, Arena, Alquimia, Caravana, Recompensa |
-| `lib/money.ts` | `formatBRL` agora retorna `🪙 1.234,56` em vez de `R$ 1.234,56` — muda display em todo o app sem alterar lógica de centavos |
+| `lib/money.ts` | `formatBRL` agora retorna `1.234,56 G` em vez de `R$ 1.234,56` — muda display em todo o app sem alterar lógica de centavos |
 | `components/ui/PixelBorder.tsx` | Novo componente: borda dupla estilo menu RPG (outer escuro + inner dourado) |
 | `assets/fonts/VT323-Regular.ttf` | Fonte pixel adicionada (Google Fonts VT323) |
 | `app/_layout.tsx` | Carrega VT323 via `expo-font` antes de renderizar |
@@ -568,7 +573,7 @@ Tema "The Sovereign's Ledger" — pixel art com estética RPG Maker medieval.
 ### Nomenclatura RPG (referência rápida)
 | Original | RPG |
 |---|---|
-| R$ / Reais | 🪙 (moeda de ouro) |
+| R$ / Reais | `G` (gold) — ex: `1.234,56 G` |
 | Saldo disponível | Bolsa de Ouro |
 | Dívidas ativas | Dívidas ao Ferreiro |
 | Maiores categorias | Ordens de Compra |

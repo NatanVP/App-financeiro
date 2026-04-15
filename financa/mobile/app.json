@@ -4,6 +4,7 @@
     "slug": "goblin-finance",
     "version": "1.0.0",
     "scheme": "financa",
+    "icon": "./assets/app-icon/Goblin_Finance.png",
     "web": {
       "bundler": "metro"
     },
@@ -12,7 +13,8 @@
     ],
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0E0E10"
+        "foregroundImage": "./assets/app-icon/Goblin_Finance.png",
+        "backgroundColor": "#1D1101"
       },
       "package": "br.com.financa.app"
     },
