@@ -47,11 +47,14 @@ export default function DashboardScreen() {
   const totalDebtBalance = getTotalBalance();
   const activeGoals = getActiveGoals();
 
-  const cashflowBars = MONTH_NAMES.map((label, i) => ({
-    label,
-    value: Math.random() * 100,
-    isHighlighted: i === month - 1,
-  }));
+  const cashflowBars = MONTH_NAMES.map((label, i) => {
+    const { incomeCents: inc, expenseCents: exp } = getMonthlyTotals(year, i + 1);
+    return {
+      label,
+      value: inc - exp, // saldo do mês (pode ser negativo)
+      isHighlighted: i === month - 1,
+    };
+  });
 
   const topCategories = getTopCategories(year, month);
   const maxCatAmount = Math.max(...topCategories.map((c) => c.amountCents), 1);

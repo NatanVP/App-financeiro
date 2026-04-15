@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { View } from 'react-native';
 import * as Font from 'expo-font';
 import { Colors } from '@/constants/theme';
 
@@ -23,19 +23,7 @@ export default function RootLayout() {
     })();
   }, []);
 
-  useEffect(() => {
-    if (Platform.OS === 'web') return;
-    (async () => {
-      try {
-        const { open } = await import('@op-engineering/op-sqlite');
-        const { runMigrations } = await import('@/db/migrations');
-        const db = open({ name: 'financa.db' });
-        await runMigrations(db);
-      } catch (e) {
-        console.warn('DB init failed:', e);
-      }
-    })();
-  }, []);
+  // TODO: inicializar expo-sqlite aqui quando migrar persistência local
 
   if (!fontsLoaded) {
     return <View style={{ flex: 1, backgroundColor: Colors.background }} />;
@@ -56,6 +44,7 @@ export default function RootLayout() {
           name="new-transaction"
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
+        <Stack.Screen name="transactions/[id]" />
         <Stack.Screen name="debts/[id]/simulator" />
         <Stack.Screen name="debts/[id]/index" />
       </Stack>

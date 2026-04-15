@@ -26,14 +26,18 @@ export function BarChart({
   barColor = Colors.surfaceHigh,
   highlightColor = Colors.primary,
 }: Props) {
-  const maxValue = Math.max(...data.map((d) => d.value), 1);
+  const maxValue = Math.max(...data.map((d) => Math.abs(d.value)), 1);
 
   return (
     <View style={[styles.container, { height }]}>
       {/* Bars */}
       <View style={styles.barsRow}>
         {data.map((bar, i) => {
-          const barHeight = (bar.value / maxValue) * (height - 20); // 20px for labels
+          const barHeight = (Math.abs(bar.value) / maxValue) * (height - 20);
+          const isNegative = bar.value < 0;
+          const color = bar.isHighlighted
+            ? (isNegative ? Colors.tertiary : highlightColor)
+            : (isNegative ? Colors.tertiaryContainer : barColor);
           return (
             <View key={i} style={styles.barWrapper}>
               <View style={styles.barContainer}>
@@ -42,7 +46,7 @@ export function BarChart({
                     styles.bar,
                     {
                       height: Math.max(2, barHeight),
-                      backgroundColor: bar.isHighlighted ? highlightColor : barColor,
+                      backgroundColor: color,
                     },
                   ]}
                 />

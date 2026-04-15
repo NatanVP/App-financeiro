@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import {
   Alert,
-  Platform,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,6 +21,8 @@ import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { money, Money } from '@/lib/money';
 import { NumPad } from '@/components/ui/NumPad';
+import { DatePickerModal } from '@/components/ui/DatePickerModal';
+import { BankIcon } from '@/components/ui/BankIcon';
 import { CATEGORIES } from '@/constants/categories';
 import { useTransactionStore } from '@/store/transactionStore';
 import { useAccountStore } from '@/store/accountStore';
@@ -33,11 +35,25 @@ export default function NewTransactionScreen() {
   const [amountInput, setAmountInput] = useState('0');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [description, setDescription] = useState('');
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showAccountPicker, setShowAccountPicker] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const formatDateLabel = (iso: string): string => {
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    if (iso === today) return 'Hoje';
+    if (iso === yesterday) return 'Ontem';
+    const [, m, d] = iso.split('-');
+    const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    return `${parseInt(d)} ${months[parseInt(m) - 1]}`;
+  };
 
   const { addTransaction } = useTransactionStore();
   const { getActiveAccounts } = useAccountStore();
   const accounts = getActiveAccounts();
+  const [selectedAccountId, setSelectedAccountId] = useState(() => accounts[0]?.id ?? 'nubank');
 
   const handleNumPad = (key: string) => {
     if (key === '⌫') {
@@ -80,9 +96,8 @@ export default function NewTransactionScreen() {
       return;
     }
 
-    const accountId = accounts[0]?.id ?? 'default';
+    const accountId = selectedAccountId;
     const now = new Date().toISOString();
-    const today = now.slice(0, 10);
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
     const tx = {
@@ -92,7 +107,7 @@ export default function NewTransactionScreen() {
       amount_cents: cents,
       type: txType,
       description: description.trim(),
-      date: today,
+      date: selectedDate,
       notes: null,
       transfer_to_account_id: null,
       is_reconciled: false,
@@ -104,18 +119,13 @@ export default function NewTransactionScreen() {
 
     setSaving(true);
     try {
-      // Salva no SQLite (nativo) se disponível
-      if (Platform.OS !== 'web') {
-        const { insertTransaction } = await import('@/db/queries/transactions');
-        const { open } = await import('@op-engineering/op-sqlite');
-        const db = open({ name: 'financa.db' });
-        await insertTransaction(db, tx);
-      }
-      // Atualiza a store em memória
+      // TODO: persistência local com expo-sqlite (substituto do op-sqlite)
+      // Por enquanto salva só na store em memória + sync via backend
       addTransaction(tx);
       router.back();
-    } catch (e) {
-      Alert.alert('Erro', 'Não foi possível salvar a transação.');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert('Erro ao salvar', msg);
       console.error(e);
     } finally {
       setSaving(false);
@@ -166,7 +176,7 @@ export default function NewTransactionScreen() {
         <View style={styles.amountSection}>
           <Text style={[styles.amountLabel, { color: typeColors[txType] }]}>VALOR TOTAL</Text>
           <View style={styles.amountRow}>
-            <Text style={styles.amountPrefix}>R$</Text>
+            <Text style={styles.amountPrefix}>G$</Text>
             <Text style={styles.amountText}>{displayAmount}</Text>
           </View>
         </View>
@@ -209,18 +219,21 @@ export default function NewTransactionScreen() {
           <View style={styles.metaRow}>
             <View style={{ flex: 1, gap: 4 }}>
               <Text style={styles.fieldLabel}>CONTA</Text>
-              <View style={styles.selectBtn}>
-                <View style={styles.nuDot}><Text style={styles.nuLetter}>N</Text></View>
-                <Text style={styles.selectText}>Nubank</Text>
+              <TouchableOpacity style={styles.selectBtn} onPress={() => setShowAccountPicker(true)}>
+                <BankIcon bank={selectedAccountId} size={20} />
+                <Text style={styles.selectText}>
+                  {accounts.find(a => a.id === selectedAccountId)?.name ?? 'Conta'}
+                </Text>
                 <Text style={{ color: Colors.onSurfaceVariant, opacity: 0.4 }}>▼</Text>
-              </View>
+              </TouchableOpacity>
             </View>
             <View style={{ flex: 1, gap: 4 }}>
               <Text style={styles.fieldLabel}>DATA</Text>
-              <View style={styles.selectBtn}>
-                <Text style={styles.selectText}>Hoje</Text>
-                <Text style={{ color: Colors.onSurfaceVariant, opacity: 0.4 }}>✏</Text>
-              </View>
+              <TouchableOpacity style={styles.selectBtn} onPress={() => setShowDatePicker(true)}>
+                <Ionicons name="calendar-outline" size={14} color={Colors.primary} />
+                <Text style={styles.selectText}>{formatDateLabel(selectedDate)}</Text>
+                <Text style={{ color: Colors.onSurfaceVariant, opacity: 0.4 }}>▼</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -246,6 +259,37 @@ export default function NewTransactionScreen() {
           </TouchableOpacity>
         </ScrollView>
       </View>
+
+      <DatePickerModal
+        visible={showDatePicker}
+        value={selectedDate}
+        onConfirm={(date) => { setSelectedDate(date); setShowDatePicker(false); }}
+        onCancel={() => setShowDatePicker(false)}
+      />
+
+      {/* Account picker modal */}
+      <Modal visible={showAccountPicker} transparent animationType="fade" onRequestClose={() => setShowAccountPicker(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setShowAccountPicker(false)}>
+          <Pressable style={styles.accountPickerCard} onPress={() => {}}>
+            <Text style={styles.accountPickerTitle}>SELECIONAR CONTA</Text>
+            {accounts.map((acc) => (
+              <TouchableOpacity
+                key={acc.id}
+                style={[styles.accountOption, selectedAccountId === acc.id && styles.accountOptionActive]}
+                onPress={() => { setSelectedAccountId(acc.id); setShowAccountPicker(false); }}
+              >
+                <BankIcon bank={acc.id} size={28} />
+                <Text style={[styles.accountOptionText, selectedAccountId === acc.id && { color: Colors.primary }]}>
+                  {acc.name}
+                </Text>
+                {selectedAccountId === acc.id && (
+                  <Ionicons name="checkmark" size={18} color={Colors.primary} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -284,8 +328,12 @@ const styles = StyleSheet.create({
   catName: { fontSize: 12, fontWeight: '600', color: Colors.onSurfaceVariant },
   metaRow: { flexDirection: 'row', gap: Spacing.lg },
   selectBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: Colors.surface, borderRadius: 8, borderBottomWidth: 1, borderBottomColor: `${Colors.primary}40` },
-  nuDot: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#820AD1', alignItems: 'center', justifyContent: 'center' },
-  nuLetter: { color: 'white', fontSize: 8, fontWeight: '700' },
+  modalBackdrop: { flex: 1, backgroundColor: '#000000AA', alignItems: 'center', justifyContent: 'center' },
+  accountPickerCard: { backgroundColor: Colors.surfaceLow, borderWidth: 1, borderColor: Colors.outlineVariant, borderRadius: 4, width: 280, overflow: 'hidden' },
+  accountPickerTitle: { fontFamily: 'VT323', fontSize: 13, textTransform: 'uppercase', letterSpacing: 2, color: Colors.onSurfaceVariant, padding: 16, borderBottomWidth: 1, borderBottomColor: Colors.outlineVariant },
+  accountOption: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderBottomWidth: 1, borderBottomColor: `${Colors.outlineVariant}60` },
+  accountOptionActive: { backgroundColor: `${Colors.primary}10` },
+  accountOptionText: { flex: 1, fontFamily: 'VT323', fontSize: 16, color: Colors.onSurface },
   selectText: { flex: 1, fontSize: 12, fontWeight: '500', color: Colors.onSurface },
   descInput: {
     backgroundColor: Colors.surface,
