@@ -7,6 +7,7 @@ export interface DebtRow {
   id: string;
   name: string;
   type: string;
+  bank_id?: string | null;
   principal_cents: Money;
   current_balance_cents: Money;
   interest_rate_monthly: number;
@@ -32,11 +33,11 @@ export async function upsertDebt(db: AnyDB, row: DebtRow): Promise<void> {
   if (Platform.OS === 'web') return;
   await db.executeAsync(
     `INSERT OR REPLACE INTO debts
-     (id, name, type, principal_cents, current_balance_cents, interest_rate_monthly,
+     (id, name, type, bank_id, principal_cents, current_balance_cents, interest_rate_monthly,
       start_date, due_date, monthly_payment_cents, status, notes, created_at, updated_at, deleted_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      row.id, row.name, row.type, row.principal_cents, row.current_balance_cents,
+      row.id, row.name, row.type, row.bank_id ?? null, row.principal_cents, row.current_balance_cents,
       row.interest_rate_monthly, row.start_date, row.due_date ?? null,
       row.monthly_payment_cents, row.status, row.notes ?? null,
       row.created_at, row.updated_at, row.deleted_at ?? null,
@@ -49,6 +50,7 @@ function mapDebtRow(row: Record<string, unknown>): DebtRow {
     id: row.id as string,
     name: row.name as string,
     type: row.type as string,
+    bank_id: (row.bank_id as string | null) ?? null,
     principal_cents: money(row.principal_cents as number),
     current_balance_cents: money(row.current_balance_cents as number),
     interest_rate_monthly: row.interest_rate_monthly as number,

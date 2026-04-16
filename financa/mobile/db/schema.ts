@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS debts (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   type TEXT NOT NULL DEFAULT 'other',
+  bank_id TEXT,
   principal_cents INTEGER NOT NULL,
   current_balance_cents INTEGER NOT NULL,
   interest_rate_monthly REAL NOT NULL DEFAULT 0,

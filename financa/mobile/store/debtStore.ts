@@ -5,6 +5,7 @@ export interface Debt {
   id: string;
   name: string;
   type: string;
+  bank_id?: string | null;
   principal_cents: Money;
   current_balance_cents: Money;
   interest_rate_monthly: number;
@@ -23,6 +24,7 @@ interface DebtState {
   setDebts: (debts: Debt[]) => void;
   addDebt: (debt: Debt) => void;
   updateDebt: (id: string, updates: Partial<Debt>) => void;
+  applyPayment: (id: string, amountCents: Money) => void;
   deleteDebt: (id: string) => void;
   getActiveDebts: () => Debt[];
   getTotalBalance: () => Money;
@@ -40,6 +42,21 @@ export const useDebtStore = create<DebtState>((set, get) => ({
       debts: state.debts.map((d) =>
         d.id === id ? { ...d, ...updates, updated_at: new Date().toISOString() } : d,
       ),
+    })),
+
+  applyPayment: (id, amountCents) =>
+    set((state) => ({
+      debts: state.debts.map((d) => {
+        if (d.id !== id) return d;
+
+        const nextBalance = money(Math.max(0, d.current_balance_cents - amountCents));
+        return {
+          ...d,
+          current_balance_cents: nextBalance,
+          status: nextBalance === 0 ? 'paid' : d.status,
+          updated_at: new Date().toISOString(),
+        };
+      }),
     })),
 
   deleteDebt: (id) =>

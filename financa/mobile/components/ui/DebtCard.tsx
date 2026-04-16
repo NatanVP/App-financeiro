@@ -1,116 +1,300 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Colors, Typography } from '@/constants/theme';
-import { formatBRL, Money } from '@/lib/money';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+
+import { Colors, Spacing } from '@/constants/theme';
+import { formatBRL, money, Money } from '@/lib/money';
+import { BankIcon } from './BankIcon';
 import { ProgressBar } from './ProgressBar';
 
 interface Props {
   id: string;
   name: string;
+  bankId?: string | null;
+  bankName?: string | null;
   currentBalanceCents: Money;
   principalCents: Money;
+  monthlyPaymentCents?: Money;
   interestRateMonthly: number;
   dueDate?: string;
   isHighInterest?: boolean;
+  monthlyPaid?: boolean;
+  onRegisterPayment?: () => void;
   onPress?: () => void;
+  onDelete?: () => void;
 }
 
 export function DebtCard({
   name,
+  bankId,
+  bankName,
   currentBalanceCents,
   principalCents,
+  monthlyPaymentCents = money(0),
   interestRateMonthly,
   dueDate,
   isHighInterest = false,
+  monthlyPaid = false,
+  onRegisterPayment,
   onPress,
+  onDelete,
 }: Props) {
-  const paidOff = principalCents - currentBalanceCents;
-  const progress = principalCents > 0 ? paidOff / principalCents : 0;
+  const paidOff = Math.max(0, principalCents - currentBalanceCents);
+  const progressRaw = principalCents > 0 ? paidOff / principalCents : 0;
+  const progress = Math.max(0, Math.min(progressRaw, 1));
   const progressPct = Math.round(progress * 100);
-  const ratePct = (interestRateMonthly * 100).toFixed(1);
-
-  const progressColor = isHighInterest ? Colors.tertiary : Colors.primary;
+  const ratePct = (interestRateMonthly * 100).toFixed(2);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.75}>
-      {isHighInterest && <View style={styles.criticalDot} />}
+      <View style={styles.titleRow}>
+        <View style={styles.titleLeft}>
+          <Text style={styles.name} numberOfLines={1}>
+            {name.toUpperCase()}
+          </Text>
+          {isHighInterest && (
+            <View style={styles.highTag}>
+              <Text style={styles.highTagText}>JURO ALTO</Text>
+            </View>
+          )}
+        </View>
 
-      <View style={styles.header}>
-        <Text style={styles.name}>{name.toUpperCase()}</Text>
+        {onDelete && (
+          <TouchableOpacity onPress={onDelete} hitSlop={8} style={styles.deleteBtn}>
+            <MaterialCommunityIcons name="trash-can-outline" size={16} color={Colors.tertiary} />
+          </TouchableOpacity>
+        )}
       </View>
 
-      <Text style={styles.balance}>{formatBRL(currentBalanceCents)}</Text>
+      <View style={styles.metaRow}>
+        <View style={[styles.bankChip, !bankId && styles.bankChipEmpty]}>
+          {bankId ? <BankIcon bank={bankId} size={18} /> : <MaterialCommunityIcons name="bank-outline" size={15} color={Colors.onSurfaceVariant} />}
+          <Text style={[styles.bankChipText, !bankId && styles.bankChipTextEmpty]}>
+            {bankName ?? 'Sem banco'}
+          </Text>
+        </View>
 
-      <View style={styles.meta}>
-        <Text style={[styles.rate, isHighInterest && { color: Colors.tertiary }]}>
-          Taxa: {ratePct}% a.m.
+        <Text style={[styles.rateChip, isHighInterest && styles.rateChipDanger]}>
+          {ratePct}% a.m.
         </Text>
-        {dueDate ? (
-          <>
-            <View style={styles.dot} />
-            <Text style={styles.dueDate}>Liq: {dueDate}</Text>
-          </>
-        ) : null}
       </View>
 
       <View style={styles.progressSection}>
         <View style={styles.progressHeader}>
-          <Text style={styles.progressLabel}>Progresso de Quitação</Text>
+          <Text style={styles.progressLabel}>QUITAÇÃO</Text>
           <Text style={styles.progressLabel}>{progressPct}%</Text>
         </View>
         <ProgressBar
           progress={progress}
-          color={progressColor}
-          height={6}
+          color={isHighInterest ? Colors.tertiary : Colors.primary}
+          height={5}
         />
       </View>
+
+      <View style={styles.valuesRow}>
+        <View style={styles.valueCol}>
+          <Text style={styles.valueLabel}>EM ABERTO</Text>
+          <Text style={[styles.valueAmount, { color: Colors.tertiary }]}>
+            {formatBRL(currentBalanceCents)}
+          </Text>
+        </View>
+
+        <View style={styles.valueCol}>
+          <Text style={styles.valueLabel}>QUITADO</Text>
+          <Text style={[styles.valueAmount, { color: Colors.secondary }]}>
+            {formatBRL(money(paidOff))}
+          </Text>
+        </View>
+
+        <View style={styles.valueCol}>
+          <Text style={styles.valueLabel}>PAG./MÊS</Text>
+          <Text style={styles.valueAmount}>
+            {monthlyPaymentCents > 0 ? formatBRL(monthlyPaymentCents) : '--'}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.footerRow}>
+        <Text style={styles.footerText}>ORIGINAL: {formatBRL(principalCents)}</Text>
+        <Text style={styles.footerText}>{dueDate ? `META: ${dueDate}` : 'SEM PRAZO'}</Text>
+      </View>
+
+      {onRegisterPayment && monthlyPaymentCents > 0 && !monthlyPaid && (
+        <TouchableOpacity style={styles.payBtn} onPress={onRegisterPayment}>
+          <Text style={styles.payBtnText}>
+            ABATER ESTE MES - {formatBRL(monthlyPaymentCents)}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {onRegisterPayment && monthlyPaymentCents <= 0 && (
+        <TouchableOpacity style={styles.payBtnAlt} onPress={onRegisterPayment}>
+          <Text style={styles.payBtnAltText}>ABATER SALDO</Text>
+        </TouchableOpacity>
+      )}
+
+      {onRegisterPayment && monthlyPaymentCents > 0 && monthlyPaid && (
+        <TouchableOpacity style={styles.payBtnAlt} onPress={onRegisterPayment}>
+          <Text style={styles.payBtnAltText}>ABATER EXTRA</Text>
+        </TouchableOpacity>
+      )}
+
+      {monthlyPaid && (
+        <Text style={styles.paidThisMonth}>PAGAMENTO DO MES REGISTRADO</Text>
+      )}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.surface,
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: `${Colors.outlineVariant}25`,
-    position: 'relative',
-    overflow: 'hidden',
+    backgroundColor: Colors.surfaceLow,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
   },
-  criticalDot: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.tertiary,
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
-  header: { marginBottom: 4 },
+  titleLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
   name: {
-    ...Typography.labelXs,
+    flex: 1,
+    fontFamily: 'VT323',
+    fontSize: 18,
+    letterSpacing: 1,
+    color: Colors.onSurface,
+  },
+  highTag: {
+    backgroundColor: `${Colors.tertiary}20`,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  highTagText: {
+    fontFamily: 'VT323',
+    fontSize: 11,
+    letterSpacing: 1,
+    color: Colors.tertiary,
+  },
+  deleteBtn: {
+    padding: 2,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  bankChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: `${Colors.primary}12`,
+    borderWidth: 1,
+    borderColor: `${Colors.primary}30`,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  bankChipEmpty: {
+    backgroundColor: Colors.surface,
+    borderColor: `${Colors.outlineVariant}70`,
+  },
+  bankChipText: {
+    fontFamily: 'VT323',
+    fontSize: 12,
+    letterSpacing: 1,
+    color: Colors.primary,
+  },
+  bankChipTextEmpty: {
     color: Colors.onSurfaceVariant,
-    marginBottom: 4,
   },
-  balance: {
-    fontSize: 24,
-    fontWeight: '900',
-    letterSpacing: -0.5,
-    color: Colors.primaryText,
-    fontVariant: ['tabular-nums'],
-    marginBottom: 8,
-  },
-  meta: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 6 },
-  rate: {
-    ...Typography.labelSm,
-    fontWeight: '700',
+  rateChip: {
+    fontFamily: 'VT323',
+    fontSize: 12,
+    letterSpacing: 1,
     color: Colors.onSurfaceVariant,
-    fontVariant: ['tabular-nums'],
   },
-  dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: `${Colors.outlineVariant}50` },
-  dueDate: { ...Typography.labelSm, color: `${Colors.onSurfaceVariant}CC`, fontVariant: ['tabular-nums'] },
+  rateChipDanger: {
+    color: Colors.tertiary,
+  },
   progressSection: { gap: 6 },
   progressHeader: { flexDirection: 'row', justifyContent: 'space-between' },
-  progressLabel: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, color: Colors.onSurfaceVariant },
+  progressLabel: {
+    fontFamily: 'VT323',
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    color: Colors.onSurfaceVariant,
+  },
+  valuesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: Spacing.xs,
+  },
+  valueCol: { flex: 1, gap: 2 },
+  valueLabel: {
+    fontFamily: 'VT323',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    color: Colors.onSurfaceVariant,
+  },
+  valueAmount: {
+    fontFamily: 'VT323',
+    fontSize: 15,
+    fontVariant: ['tabular-nums'],
+    color: Colors.onSurface,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: Spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: `${Colors.outlineVariant}40`,
+    gap: Spacing.sm,
+  },
+  footerText: {
+    fontFamily: 'VT323',
+    fontSize: 11,
+    letterSpacing: 1,
+    color: Colors.onSurfaceVariant,
+  },
+  payBtn: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  payBtnText: {
+    fontFamily: 'VT323',
+    fontSize: 15,
+    letterSpacing: 1.5,
+    color: Colors.onPrimary,
+  },
+  payBtnAlt: {
+    borderWidth: 1,
+    borderColor: `${Colors.primary}40`,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: `${Colors.primary}10`,
+  },
+  payBtnAltText: {
+    fontFamily: 'VT323',
+    fontSize: 15,
+    letterSpacing: 1.5,
+    color: Colors.primary,
+  },
+  paidThisMonth: {
+    fontFamily: 'VT323',
+    fontSize: 12,
+    letterSpacing: 1,
+    color: Colors.secondary,
+    textAlign: 'center',
+  },
 });
