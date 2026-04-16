@@ -2,7 +2,7 @@
  * More/Settings screen — allocation sliders, Telegram status, sync, DB export.
  */
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -11,15 +11,39 @@ import { router } from 'expo-router';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { useAllocationStore } from '@/store/allocationStore';
 import { useSyncStore } from '@/store/syncStore';
+import { useSalaryStore } from '@/store/salaryStore';
+import { parseBRL, formatBRL, money } from '@/lib/money';
+
+function centsToInput(cents: number): string {
+  if (cents === 0) return '';
+  return (cents / 100).toFixed(2).replace('.', ',');
+}
 
 export default function MoreScreen() {
   const insets = useSafeAreaInsets();
   const { reservePct, debtsPct, goalsPct, setAllocation } = useAllocationStore();
   const { status, lastSyncAt } = useSyncStore();
+  const { payment5thCents, payment20thCents, paymentLastCents, setSalaryConfig } = useSalaryStore();
 
   const [reserve, setReserve] = useState(reservePct);
   const [debts, setDebts] = useState(debtsPct);
   const [goals, setGoals] = useState(goalsPct);
+
+  const [sal5, setSal5] = useState(centsToInput(payment5thCents));
+  const [sal20, setSal20] = useState(centsToInput(payment20thCents));
+  const [salLast, setSalLast] = useState(centsToInput(paymentLastCents));
+
+  const onSaveSalary = () => {
+    try {
+      const p5 = sal5.trim() ? parseBRL(sal5) : money(0);
+      const p20 = sal20.trim() ? parseBRL(sal20) : money(0);
+      const pLast = salLast.trim() ? parseBRL(salLast) : money(0);
+      setSalaryConfig({ payment5thCents: p5, payment20thCents: p20, paymentLastCents: pLast });
+      Alert.alert('Salvo', 'Configuração de salário atualizada.');
+    } catch {
+      Alert.alert('Erro', 'Valor inválido. Use o formato 1.234,56');
+    }
+  };
 
   const total = reserve + debts + goals;
   const isValid = total === 100;
@@ -41,6 +65,19 @@ export default function MoreScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Configurações</Text>
+      </View>
+
+      {/* Salary section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>SALÁRIO (BOLSA DE OURO)</Text>
+        <View style={styles.card}>
+          <SalaryInput label="5º Dia Útil" value={sal5} onChangeText={setSal5} />
+          <SalaryInput label="20º Dia Útil" value={sal20} onChangeText={setSal20} />
+          <SalaryInput label="Último Dia do Mês" value={salLast} onChangeText={setSalLast} />
+        </View>
+        <TouchableOpacity style={styles.saveBtn} onPress={onSaveSalary}>
+          <Text style={styles.saveBtnText}>Salvar Salário</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Allocation section */}
@@ -170,6 +207,30 @@ export default function MoreScreen() {
   );
 }
 
+function SalaryInput({
+  label,
+  value,
+  onChangeText,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+}) {
+  return (
+    <View style={salaryStyles.row}>
+      <Text style={salaryStyles.label}>{label}</Text>
+      <TextInput
+        style={salaryStyles.input}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder="0,00"
+        placeholderTextColor={Colors.onSurfaceVariant}
+        keyboardType="numeric"
+      />
+    </View>
+  );
+}
+
 function AllocationSlider({
   label,
   value,
@@ -201,6 +262,23 @@ function AllocationSlider({
     </View>
   );
 }
+
+const salaryStyles = StyleSheet.create({
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  label: { ...Typography.bodySm, color: Colors.onSurface, opacity: 0.8, flex: 1 },
+  input: {
+    fontFamily: 'VT323',
+    fontSize: 18,
+    color: Colors.primary,
+    fontVariant: ['tabular-nums'],
+    textAlign: 'right',
+    minWidth: 120,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: Colors.surfaceLowest,
+    borderRadius: 4,
+  },
+});
 
 const sliderStyles = StyleSheet.create({
   container: { gap: 4 },

@@ -1,398 +1,407 @@
-# Finança — Personal Finance App
+# Guild Ledger — App Financeiro Pessoal
 
-Monorepo containing the complete Finança Ledger personal finance system:
-backend API, Telegram bot, and React Native mobile app.
+App de finanças pessoais com tema RPG medieval. Monorepo com backend, bot Telegram e app mobile React Native.
 
 ```
 financa/
 ├── backend/          FastAPI + SQLAlchemy 2 + PostgreSQL 16
 ├── bot/              python-telegram-bot v21 + OpenClaw bridge
-├── mobile/           Expo + React Native + op-sqlite + Zustand
+├── mobile/           Expo + React Native + Zustand
 └── infra/            Docker Compose + Caddy + VPS provisioning
 ```
 
 ---
 
-## Requirements
+## Stack
 
-| Tool | Version |
-|------|---------|
-| Docker & Docker Compose | 24+ |
-| Python | 3.12 |
-| Node.js | 20 LTS |
-| Expo CLI | latest (`npm i -g expo-cli`) |
-| Android Studio / Xcode | for device emulation |
+### Mobile
+- **Expo SDK 51** com Expo Router (navegação por arquivos)
+- **Zustand** — gerenciamento de estado (em memória, sem SQLite por enquanto)
+- **VT323** — fonte pixel art em todo o app
+- **Kenney Tiny Dungeon (CC0)** — ícones pixel art (espada, baú, escudo, etc.)
+- **MaterialCommunityIcons** — ícones de suporte
+- TypeScript `strict: true`
+
+### Backend
+- **FastAPI** — API REST assíncrona
+- **SQLAlchemy 2.x** (async) + **Alembic** — ORM e migrations
+- **PostgreSQL 16** — banco principal (dinheiro em centavos `BIGINT`)
+- **APScheduler** — worker de recorrências (sem Redis)
+
+### Infra
+- **Docker Compose** — postgres + backend + bot
+- **Caddy** — proxy reverso + TLS automático
+- **Backblaze B2 + rclone** — backup remoto 30 dias
 
 ---
 
-## Local Development
-
-### 1. Clone & configure secrets
+## Como rodar localmente
 
 ```bash
-git clone <repo> financa && cd financa
-
-# Copy and fill every variable — see comments in the file
-cp infra/.env.example infra/.env
-cp mobile/.env.example mobile/.env
-```
-
-**Required variables (infra/.env)**
-
-| Variable | Description |
-|---|---|
-| `POSTGRES_PASSWORD` | Strong random string |
-| `SECRET_TOKEN` | Bearer token for the API (generate with `openssl rand -hex 32`) |
-| `TELEGRAM_BOT_TOKEN` | From @BotFather |
-| `TELEGRAM_ALLOWED_CHAT_ID` | Your Telegram numeric user ID |
-| `OPENCLAW_API_URL` | Optional — OpenClaw agent endpoint |
-| `OPENCLAW_API_KEY` | Optional — OpenClaw API key |
-
-### 2. Start the backend + database
-
-```bash
+# Backend
 cd infra
+cp .env.example .env   # preencher variáveis
 docker compose up --build -d
 
-# Watch logs
-docker compose logs -f backend
-```
-
-The backend runs on **http://localhost:8000**.
-Alembic migrations run automatically on container start.
-OpenAPI docs: http://localhost:8000/docs
-
-### 3. Start the Telegram bot
-
-```bash
-docker compose up -d bot
-docker compose logs -f bot
-```
-
-### 4. Start the mobile app
-
-```bash
+# Mobile
 cd mobile
 npm install
-npx expo start
-```
-
-Press `a` for Android emulator, `i` for iOS simulator, or scan the QR code with Expo Go.
-
----
-
-## Deploy to VPS (Hostinger Ubuntu 22.04)
-
-### One-time provisioning
-
-```bash
-# Run as root on a fresh VPS
-bash infra/setup.sh
-```
-
-This installs Docker, Caddy, UFW (ports 22/80/443), and sets up a daily cron backup.
-
-### Deploy application
-
-```bash
-scp -r financa/ user@your-vps-ip:/opt/financa
-ssh user@your-vps-ip
-
-cd /opt/financa/infra
-cp .env.example .env   # fill real values
-nano .env
-
-docker compose up --build -d
-```
-
-Caddy auto-provisions a TLS certificate for your domain.
-Edit `infra/Caddyfile` and set `your-domain.com` before deploying.
-
-### Update application
-
-```bash
-ssh user@your-vps-ip
-cd /opt/financa
-git pull
-cd infra && docker compose up --build -d
+npx expo start         # pressione 'a' para Android, 'i' para iOS
 ```
 
 ---
 
-## Database Backups
+## Funcionalidades do App Mobile
 
-`infra/backup.sh` runs daily via cron (set up by `setup.sh`).
-Backups are stored at `/opt/financa-backups/`, gzipped, 30-day rotation.
+### Tema Visual
+- Fonte **VT323** (pixel art) em **todo o app** — títulos, valores, labels, botões
+- Paleta medieval: fundo terra escura (`#170C00`), ouro (`#FFD700`), verde floresta, escarlate
+- Bordas retas (sem `borderRadius`) — visual pixel art
+- Ícones PNG pixel art (Kenney) com chip escuro para isolamento visual
 
-**Manual backup:**
-```bash
-bash infra/backup.sh
+---
+
+### Aba: GUILDA (Dashboard)
+
+**Bolsa de Ouro** — card hero com dois números:
+
+| Número | O que mostra |
+|--------|-------------|
+| **Grande** (ex: `2.080,00 G`) | Projeção do mês: soma de todos os salários do mês − gastos até agora |
+| **Pequeno "NA CONTA"** (ex: `1.006,00 G`) | Saldo atual: salários já recebidos − gastos |
+
+- **Recebido** — soma dos pagamentos que já entraram (calculado automaticamente com base na data de hoje vs. dias úteis)
+- **A Receber** — o que ainda vai entrar no mês
+- **Gastos** — total de despesas lançadas no mês
+
+**Como funciona a projeção:**
+- Ao receber o 5º dia útil: número pequeno sobe, grande não muda (já estava contabilizado)
+- Ao gastar: **ambos** os números diminuem
+- Ao receber o 20º dia útil: número pequeno sobe novamente, grande não muda
+
+**Configuração do Salário** (em Configurações → Bolsa de Ouro):
+- 3 campos editáveis: **5º Dia Útil**, **20º Dia Útil**, **Último Dia do Mês**
+- Salvo no `salaryStore` (persiste na sessão)
+
+**Outros cards:**
+- **Fluxo de Magia** — gráfico de barras do cashflow mensal (12 meses)
+- **Reserva Real** — % de conclusão da meta de emergência
+- **Ordens de Compra** — top categorias de gastos do mês com barras
+- **Dívidas ao Ferreiro** — número de contratos ativos + saldo total
+
+---
+
+### Aba: CRÔNICAS (Transações)
+
+**Lista de transações** agrupada por data com saldo do dia.
+
+**Filtros:**
+- `TODOS` / `RECEITA` / `DESPESA` — botões quadrados em VT323 (sem bordas arredondadas)
+- Funcionam em conjunto com a busca
+
+**Busca `[ BUSCA ]`:**
+- Botão no header em VT323 — abre barra de texto inline
+- Filtra em tempo real por **categoria** e **descrição**
+- `✕` limpa o texto, botão no header fecha e limpa a busca
+
+**Item da lista:**
+- Linha principal: **nome da categoria** (ex: Armazém, Estábulo)
+- Linha secundária: descrição (se houver)
+- Valor com sinal `+` receita / `−` despesa
+
+**Nova Transação (botão espada ⚔ no centro da tab bar):**
+- Tipo: Despesa / Receita / Transf.
+- Valor com numpad pixel art — exibe `0,00 G` (G após o número)
+- Categorias em chips horizontais com ícone
+- Conta (seletor) + Data (calendário temático)
+- Descrição opcional
+- Formato monetário sempre `1.234,56 G`
+
+---
+
+### Aba: MISSÕES (Goals/Metas)
+
+**Resumo no topo:**
+- **OURO GUARDADO** — soma do `current_cents` de todas as missões ativas
+- **FALTAM** — quanto ainda falta para cumprir todas as metas
+- **PROGRESSO** — % geral
+- Barra de progresso visual
+
+**Lista de missões — GoalCard:**
+
+```
+NOME DA MISSÃO                          72%
+━━━━━━━━━━━━━━━━━━━━━━━━━░░░░░░░░░░░░░
+GUARDADO        FALTAM          META
+1.440,00 G      560,00 G        2.000,00 G
+────────────────────────────────────────
+200,00 G/MÊS                  2/6 PAGAS
+  ⚔ PAGAR PARCELA — 200,00 G
+PRAZO: 09/2025
 ```
 
-**Restore:**
-```bash
-gunzip -c /opt/financa-backups/financa_2026-04-13.sql.gz | \
-  docker exec -i financa_postgres psql -U postgres financa
+Campos:
+- **GUARDADO** — quanto já foi separado
+- **FALTAM** — diferença para a meta
+- **META** — valor total alvo
+- **PRAZO** — data limite (se definida)
+- **ATRASADA** — badge vermelho se passou do prazo e não concluiu
+- Lixeira para excluir (com confirmação)
+
+**Criar Missão (botão `+ NOVA`):**
+1. Nome da missão
+2. Valor total (numpad)
+3. Seletor de meses `[ − ] 6 [ + ]` (1–60)
+4. Preview em tempo real:
+   - `PARCELA MENSAL: 200,00 G`
+   - `TOTAL: 6× 200,00 G`
+   - `1ª PARCELA: HOJE — 200,00 G` em vermelho
+5. Escolha de cor (6 opções)
+
+**Sistema de Parcelamento:**
+
+| Evento | O que acontece |
+|--------|---------------|
+| Criar missão | 1ª parcela debitada imediatamente (transação "Parcela 1/6: [nome]") |
+| Abrir aba de Missões | App verifica meses passados → cria silenciosamente parcelas em atraso |
+| Mês atual em aberto | Botão `⚔ PAGAR PARCELA — X G` aparece no card |
+| Tocar no botão | Alert de confirmação "Parcela N/M" → débito criado, `current_cents` atualizado |
+| Parcela paga | Exibe `✓ PARCELA DO MÊS RECOLHIDA` em verde |
+| Meta concluída | `6/6 PAGAS`, barra 100%, progresso completo |
+
+Cada parcela paga gera uma transação do tipo **Despesa** na categoria **Tesouro** — o valor sai da bolsa de ouro e fica "guardado" na missão.
+
+---
+
+### Aba: BOLSA (Configurações)
+
+**Salário (Bolsa de Ouro):**
+- 3 campos de valor editáveis para os 3 pagamentos mensais
+- Botão "Salvar Salário"
+
+**Política de Alocação:**
+- Sliders: Reserva % / Dívidas % / Metas % (devem somar 100%)
+- Define como o saldo disponível é distribuído
+
+**Bot Telegram:** status de conexão com @FiireKeeperBot
+
+**Sincronização:** status + última data de sync com o Cloud Ledger
+
+**Módulos (atalhos):**
+- Orçamentos, Contas a Pagar, Dívidas
+
+**Ferramentas Avançadas:**
+- Recorrências — transações automáticas diárias
+- Provisões Anuais — IPVA, seguro, assinaturas anuais (reserva mensal)
+- Reserva de Emergência — meta de cobertura de despesas
+- Plano de Quitação — Avalanche vs. Bola de Neve
+
+---
+
+### Outras Telas
+
+**Dívidas** (`/debts`):
+- Lista com badge de criticidade (taxa ≥ 8% a.m. = crítica)
+- Detalhe com métricas: saldo, taxa, prazo, total de juros
+- Simulador interativo: estratégia (Mínimo / Livre / 12 Meses) + slider de valor
+
+**Orçamentos** (`/budgets`):
+- Barras de progresso por categoria vs. limite
+- Filtros: Todos / OK / Estourados
+- Seletor de mês, botão "Copiar mês anterior"
+
+**Contas a Pagar** (`/bills`):
+- Seções: Vencidas hoje / Próximos 7 dias / Mais tarde / Pagas
+- Botão "Marcar como paga"
+
+**Reserva de Emergência** (`/emergency-reserve`):
+- Meta em meses de cobertura
+- Cálculo automático baseado na média de gastos
+
+---
+
+## Categorias (tema RPG)
+
+| ID | Nome | Equivalente |
+|----|------|-------------|
+| 1 | Armazém | Mercado/Alimentação |
+| 2 | Estábulo | Gasolina/Veículo |
+| 3 | Taverna | Aluguel/Moradia |
+| 4 | Arena | Lazer/Entretenimento |
+| 5 | Alquimia | Saúde/Farmácia |
+| 6 | Caravana | Transporte/Viagem |
+| 7 | Recompensa | Salário/Receita |
+| goal_deposit | Tesouro | Parcela de missão |
+
+---
+
+## Regras Financeiras
+
+- **Dinheiro sempre em centavos** (integer). Nunca float.
+  - PostgreSQL: `BIGINT`
+  - TypeScript: tipo brandado `Money = number & { __brand: 'Money' }`
+- **Dias úteis** = segunda–sexta (sem feriados por ora). Calculado em `lib/businessDays.ts`.
+- **Parcelamento de missões**: `parcela = ceil(total / meses)`. Pode haver 1 centavo extra na última.
+- **Soft deletes**: `deleted_at` em todas as entidades. Nunca apagado permanentemente.
+- **Sincronização**: offline-first, last-write-wins por `updated_at`. Servidor ganha no empate.
+
+---
+
+## Estrutura de Arquivos — Mobile
+
+```
+mobile/
+├── app/
+│   ├── (tabs)/
+│   │   ├── _layout.tsx        Tab bar + FAB espada
+│   │   ├── index.tsx          Dashboard (Guilda)
+│   │   ├── transactions.tsx   Crônicas com busca + filtros
+│   │   ├── goals.tsx          Missões com parcelamento
+│   │   └── more.tsx           Configurações
+│   ├── new-transaction.tsx    Modal: nova transação
+│   ├── new-goal.tsx           Modal: nova missão
+│   ├── debts/                 Dívidas + simulador
+│   ├── budgets/               Orçamentos
+│   ├── bills/                 Contas a pagar
+│   ├── emergency-reserve.tsx
+│   ├── recurrences.tsx
+│   └── provisions.tsx
+├── components/ui/
+│   ├── GoalCard.tsx           Card de missão com parcelas
+│   ├── TransactionRow.tsx     Linha da lista de transações
+│   ├── ScrollCard.tsx         Card base com ícone pixel art
+│   ├── RPGIcon.tsx            Ícones PNG pixel art (Kenney)
+│   ├── ProgressBar.tsx
+│   ├── BarChart.tsx
+│   ├── NumPad.tsx             Teclado numérico custom
+│   └── CircularProgress.tsx
+├── store/
+│   ├── transactionStore.ts
+│   ├── goalStore.ts           + processInstallments()
+│   ├── salaryStore.ts         Configuração de salário (3 pagamentos)
+│   ├── debtStore.ts
+│   ├── accountStore.ts
+│   ├── budgetStore.ts
+│   ├── categoryStore.ts
+│   ├── allocationStore.ts
+│   └── syncStore.ts
+├── lib/
+│   ├── money.ts               Tipo Money, formatBRL, parseBRL
+│   ├── businessDays.ts        getNthBusinessDay, getReceivedPayments
+│   ├── finance.ts
+│   └── syncActions.ts
+└── constants/
+    ├── theme.ts               Colors, Spacing, Typography (VT323)
+    └── categories.ts          8 categorias RPG
 ```
 
 ---
 
 ## API Reference
 
-All endpoints require header: `Authorization: Bearer <SECRET_TOKEN>`
+Todos os endpoints requerem `Authorization: Bearer <SECRET_TOKEN>`
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/dashboard/summary` | Monthly summary (income, expenses, surplus) |
-| GET | `/api/dashboard/cashflow` | 12-month cashflow bars |
-| GET/POST | `/api/accounts` | Accounts list / create |
-| GET/POST | `/api/transactions` | Transactions list / create |
-| GET/POST | `/api/debts` | Debts list / create |
-| POST | `/api/debts/{id}/payment` | Register a debt payment |
-| GET/POST | `/api/goals` | Goals list / create |
-| POST | `/api/goals/{id}/contribution` | Add goal contribution |
-| GET/POST | `/api/budgets` | Budgets list / create |
-| GET | `/api/budgets/variance` | Budget vs. actual this month |
-| GET/POST | `/api/bills` | Bills list / create |
-| POST | `/api/bills/{id}/mark-paid` | Mark bill as paid |
-| GET/PUT | `/api/allocation` | Get/update allocation percentages |
-| GET/POST | `/api/categories` | Categories list / create |
-| POST | `/api/sync/push` | Push local changes (LWW sync) |
-| POST | `/api/sync/pull` | Pull server changes since timestamp |
-| POST | `/api/import` | Upload OFX or CSV bank statement |
-| POST | `/api/agent-log` | Log Telegram bot action |
-
----
-
-## Telegram Bot Commands
-
-| Command | Description |
-|---------|-------------|
-| `/start` | Welcome + command list |
-| `/saldo` | Current account balances + monthly summary |
-| `/lancamento <valor> <descrição>` | Quick transaction (with confirmation) |
-| `/relatorio` | Monthly income / expense / surplus |
-| `/dividas` | Active debts overview |
-| `/metas` | Goals progress |
-| `/contas` | Pending bills |
-| `/ai <pergunta>` | Forward to OpenClaw AI agent |
-| `/ajuda` | Help text |
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/dashboard/summary` | Resumo mensal (receitas, despesas, saldo) |
+| GET | `/api/dashboard/cashflow` | Cashflow 12 meses |
+| GET/POST | `/api/accounts` | Contas |
+| GET/POST | `/api/transactions` | Transações |
+| GET/POST | `/api/debts` | Dívidas |
+| POST | `/api/debts/{id}/payment` | Registrar pagamento de dívida |
+| GET/POST | `/api/goals` | Metas |
+| POST | `/api/goals/{id}/contribution` | Adicionar contribuição à meta |
+| GET/POST | `/api/budgets` | Orçamentos |
+| GET | `/api/budgets/variance` | Orçado vs. realizado |
+| GET/POST | `/api/bills` | Contas a pagar |
+| POST | `/api/bills/{id}/mark-paid` | Marcar conta como paga |
+| GET/PUT | `/api/allocation` | Política de alocação |
+| GET/POST | `/api/categories` | Categorias |
+| POST | `/api/sync/push` | Enviar mudanças locais |
+| POST | `/api/sync/pull` | Receber mudanças do servidor |
+| POST | `/api/import` | Importar OFX ou CSV |
+| POST | `/api/debts/plan` | Plano global Avalanche vs. Bola de Neve |
 
 ---
 
-## Mobile App Screens
+## Comandos do Bot Telegram
 
-| Route | Screen |
-|-------|--------|
-| `/(tabs)/` | Dashboard — hero card, cashflow chart, categories, reserve |
-| `/(tabs)/transactions` | Transactions list with date groups + filters |
-| `/(tabs)/goals` | Goals with circular progress + quarterly chart |
-| `/(tabs)/more` | Settings: allocation sliders, sync, navigation |
-| `/new-transaction` | Bottom sheet: type toggle, numpad, category, account |
-| `/debts` | Debts list with summary card + criticality badge |
-| `/debts/[id]` | Debt detail: metrics, trajectory, optimal scenario |
-| `/debts/[id]/simulator` | Interactive simulator: strategy selector + payment slider |
-| `/budgets` | Budgets with progress bars + over/ok filter |
-| `/bills` | Bills (Contas a Pagar): overdue/pending/paid sections |
-
----
-
-## Tech Stack
-
-### Backend
-- **FastAPI** — async REST API
-- **SQLAlchemy 2.x** (async) — ORM with `Mapped`/`mapped_column`
-- **Alembic** — async migrations
-- **PostgreSQL 16** — primary datastore (money as `BIGINT` cents)
-- **pydantic-settings** — config from `.env`
-- **ofxparse** — OFX bank statement parser
-
-### Bot
-- **python-telegram-bot 21** — polling mode
-- **httpx** — async API client
-- **OpenClaw bridge** — optional AI agent forwarding
-
-### Mobile
-- **Expo SDK 51** with Expo Router (file-based navigation)
-- **op-sqlite** — performant local SQLite (WAL mode, FK enabled)
-- **Zustand** — lightweight state management
-- **expo-linear-gradient** — CTA gradients
-- **@react-native-community/slider** — debt simulator slider
-- **date-fns** — date utilities
-- TypeScript `strict: true` throughout
-
-### Infra
-- **Docker Compose** — orchestrates postgres + backend + bot
-- **Caddy** — reverse proxy + automatic TLS
-- **UFW** — firewall (22/80/443 only)
+| Comando | Descrição |
+|---------|-----------|
+| `/start` | Boas-vindas + lista de comandos |
+| `/saldo` | Saldo das contas + resumo mensal |
+| `/lancamento <valor> <descrição>` | Lançar transação rápida |
+| `/relatorio` | Receita / despesa / saldo do mês |
+| `/dividas` | Visão das dívidas ativas |
+| `/metas` | Progresso das metas |
+| `/contas` | Contas a pagar pendentes |
+| `/ai <pergunta>` | Encaminhar para agente OpenClaw |
+| `/ajuda` | Texto de ajuda |
 
 ---
 
-## Financial Rules
-
-- **Money is always stored in cents** (integer). Never float.
-  - PostgreSQL: `BIGINT`
-  - TypeScript: branded type `Money = number & { __brand: 'Money' }`
-- **PMT formula** (Price table amortization) used for debt simulation and minimum payment calculation.
-- **Allocation**: `reserve% + debts% + goals% = 100`. Goals bucket receives the remainder to prevent rounding drift.
-- **Sync**: offline-first, last-write-wins by `updated_at`. Server wins if `server.updated_at > client.updated_at`.
-- **Soft deletes**: `deleted_at` timestamp on transactions, accounts, debts, goals. Never hard-deleted.
-
----
-
-## Running Tests
+## Deploy (VPS Hostinger Ubuntu 22.04)
 
 ```bash
-cd backend
-pip install -r requirements.txt
-pytest tests/ -v
-```
+# Provisionamento (apenas uma vez)
+bash infra/setup.sh
 
-Tests cover all financial calculation functions with:
-- Happy path
-- Edge cases (balance=0, rate=0, term=1 month)
-- Infeasible scenarios (payment ≤ monthly interest)
+# Deploy
+scp -r financa/ user@ip:/opt/financa
+ssh user@ip "cd /opt/financa/infra && cp .env.example .env && nano .env && docker compose up --build -d"
 
----
-
-## Desvios da Spec (Deviations from spec)
-
-### Correções aplicadas (alinhamento seletivo com `projeto-app-financeiro.md`)
-
-As seções abaixo documentam cada ajuste feito em relação à spec, cada divergência mantida com justificativa técnica, e decisões de arquitetura deliberadas.
-
----
-
-#### Correção 1 — Bot Telegram: polling → webhook
-
-**O que foi corrigido:** O bot originalmente usava `run_polling()`. Foi migrado para webhook HTTP.
-
-- Endpoint exposto em `POST /telegram/webhook/<secret_path>` (path aleatório como segurança extra).
-- O token secreto é validado pelo header `X-Telegram-Bot-Api-Secret-Token` que o Telegram injeta.
-- PTB usa seu próprio servidor aiohttp interno (porta 8443); Caddy faz proxy reverso via `handle /telegram/webhook/*`.
-- Variáveis novas: `TELEGRAM_WEBHOOK_URL`, `TELEGRAM_WEBHOOK_SECRET`, `BOT_WEBHOOK_PORT`.
-
-**Por que webhook:** Polling requer que o processo fique consultando a API do Telegram continuamente. Webhook é orientado a eventos, sem latência de pooling, e é o modelo esperado em produção.
-
----
-
-#### Correção 2 — Tabelas ausentes: recorrências, provisões anuais, reserva de emergência
-
-**O que foi adicionado:**
-
-- Tabela `recurrences` — template de transação em JSONB, regra de repetição em RRULE (ex: `FREQ=MONTHLY`), `next_run DATE`, `active BOOL`.
-- Tabela `annual_provisions` — gastos anuais divididos em 12 parcelas mensais (IPVA, seguro, etc.).
-- Tabela `emergency_reserve` — singleton (id=1) com `target_months`, `target_cents`, `current_cents`, `account_id`.
-- CRUD completo no backend para cada tabela.
-- Cron worker via **APScheduler** dentro do lifespan do FastAPI (sem container separado, sem Redis): roda às 06h horário de Brasília, materializa transações cujo `next_run ≤ hoje`, avança `next_run` pelo rrule.
-- Consultas de leitura no bot Telegram (`/recorrencias`, `/reserva`).
-- Telas no app: **Mais → Recorrências**, **Mais → Provisões Anuais**, **Mais → Reserva de Emergência**.
-
----
-
-#### Correção 3 — Backup remoto com rclone + Backblaze B2
-
-**O que foi corrigido:** `backup.sh` só fazia rotação local. Agora:
-
-- Retenção local: **7 dias** (era 30).
-- Retenção remota: **30 dias** via `rclone delete --min-age 30d`.
-- Dump é copiado para B2 com `rclone copy` logo após a criação.
-- Variáveis: `B2_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `RCLONE_REMOTE`.
-
-**Configuração do Backblaze B2:**
-
-```bash
-# 1. Criar conta em backblaze.com
-# 2. Account → App Keys → Create a New Application Key (Read/Write no bucket)
-# 3. Na VPS:
-rclone config
-# → n (new remote) → nome: b2financa → type: b2
-# → account_id: <B2_KEY_ID> → key: <B2_APPLICATION_KEY> → confirm
-# 4. Criar bucket (nome único globalmente):
-rclone mkdir b2financa:financa-backups
-# 5. Testar:
-rclone ls b2financa:financa-backups
-```
-
-Adicionar ao crontab (`crontab -e`):
-```
-0 3 * * * /opt/financa/infra/backup.sh >> /var/log/financa-backup.log 2>&1
+# Atualização
+ssh user@ip "cd /opt/financa && git pull && cd infra && docker compose up --build -d"
 ```
 
 ---
 
-#### Correção 4 — Campo `source` nas transações
+## Backup
 
-**O que foi adicionado:** `source TEXT NOT NULL DEFAULT 'app'` na tabela `transactions`.
-
-Valores válidos: `app | telegram | agent | import | recurring`
-
-- `recurring` — definido pelo worker de recorrências.
-- `telegram` — definido pelo bot ao criar transações via `/gasto`.
-- `import` — definido pelo parser OFX/CSV.
-- `agent` — reservado para integrações futuras (OpenClaw).
-- Filtro opcional em `GET /transactions?source=telegram`.
+- **Local**: 7 dias de rotação em `/opt/financa-backups/`
+- **Remoto**: Backblaze B2, 30 dias via rclone
+- Cron: diário às 3h
+- Restore: `gunzip -c backup.sql.gz | docker exec -i financa_postgres psql -U postgres financa`
 
 ---
 
-#### Correção 5 — Orçamentos por mês (`year_month`)
+## Changelog
 
-**O que foi corrigido:** A constraint antiga era `UNIQUE(category_id)`, impedindo orçamentos históricos. Agora:
+### 2026-04-15
 
-- Schema: `(category_id, year_month CHAR(7))` com constraint composta `UNIQUE(category_id, year_month)`.
-- `year_month` segue o formato `YYYY-MM` (ex: `2026-04`).
-- `GET /budgets?year_month=YYYY-MM` — padrão: mês corrente.
-- `POST /budgets/copy-previous?target_month=&source_month=` — copia categorias que ainda não existem no mês alvo.
-- Tela de orçamentos no app inclui **seletor de mês** (navegar para frente/trás) e botão **"Copiar mês ant."**.
+#### Bolsa de Ouro — Salário configurável
+- Novo `salaryStore` com 3 pagamentos: 5º dia útil, 20º dia útil, último dia do mês
+- Novo `lib/businessDays.ts` — cálculo de dias úteis (seg–sex)
+- Dashboard reformulado: **dois números** na Bolsa de Ouro
+  - Grande = total do mês − gastos (projeção)
+  - Pequeno "NA CONTA" = recebido até hoje − gastos
+- Stats: Recebido / A Receber / Gastos
+- Seção "Salário" em Configurações com 3 campos editáveis
 
----
+#### Crônicas (Transações) — melhorias visuais e busca
+- Filtros `TODOS / RECEITA / DESPESA` em VT323 sem bordas arredondadas
+- Botão `[ BUSCA ]` em VT323 (substituiu emoji 🔍)
+- Busca funcional por categoria e descrição em tempo real
+- Lista: categoria como título principal, descrição como subtítulo
+- Descrição não é mais obrigatória ao criar transação
+- Formato monetário corrigido: `0,00 G` (G após o número, sem `G$`)
+- Fonte VT323 no campo de valor da nova transação
 
-#### Correção 6 — Plano global de quitação de dívidas
-
-**O que foi adicionado (complementar ao simulador individual existente):**
-
-- `POST /debts/plan?monthly_budget_cents=&strategy=both`
-- Input: orçamento mensal total para dívidas.
-- Output: tabela Avalanche vs Bola de Neve com detalhes por dívida (meses para quitar, juros totais).
-- **Regra de criticidade:** dívidas com taxa ≥ 8% a.m. sempre aparecem no topo de ambas as estratégias, independentemente do saldo ou posição na estratégia.
-- Nova tela `app/debts/plan.tsx` com comparação lado a lado e destaque de economia da Avalanche.
-- Acessível via **Mais → Plano de Quitação**.
-
----
-
-### Divergências mantidas (com justificativa)
-
-| Decisão | Justificativa |
-|---------|---------------|
-| **Caddy em vez de Nginx** | Zero-config TLS automático via ACME/Let's Encrypt. O `Caddyfile` tem 20 linhas vs. ~80 de nginx equivalente. Custo de migração > benefício. |
-| **Branded `Money` type em vez de dinero.js** | `dinero.js` adiciona ~40 KB ao bundle mobile. O tipo `Money` customizado cobre 100% dos casos de uso, é tipado em TypeScript e sem dependência externa. |
-| **Simulador individual de dívidas (3 estratégias)** | Complementar ao Plano Global. O simulador individual (Mínimo / Livre / 12 Meses) opera em uma única dívida com slider de valor; o Plano Global opera sobre o portfólio completo. São casos de uso distintos. |
-| **LWW sync por `updated_at` + `dirty BOOLEAN`** | Mais simples que CRDTs para app single-user. O campo `dirty = 1` em todas as tabelas SQLite locais permite `SELECT WHERE dirty=1` eficiente para identificar pendências de sync sem varredura completa. `dirty` é zerado a 0 após push confirmado. |
-| **Autenticação por Bearer token estático** | App pessoal, single-user. JWT adiciona complexidade (refresh tokens, revogação) sem benefício para esse caso de uso. |
-| **`ofxparse` + heurísticas de banco** | Cobre OFX e os principais CSVs do mercado BR (Nubank, Inter, Itaú). Adicionar um novo banco é inserir uma função no parser. |
-
----
-
-### Redis — omissão deliberada
-
-**Redis não foi incluído no stack.** Justificativa:
-
-- O único caso de uso para Redis seria queue de jobs (recorrências, notificações). Para um app single-user com volume de dezenas de transações/dia, **APScheduler dentro do processo FastAPI** tem overhead zero e simplifica o deploy.
-- Adicionar Redis significaria: novo container, configuração de senha, conexão do worker, serialização/desserialização de jobs — tudo para substituir um `scheduler.add_job()`.
-- **Quando revisitar:** Se o volume de recorrências exceder ~500/dia ou se múltiplos workers forem necessários (horizontalmente), migrar para Celery + Redis (ou ARQ que é async-native) é trivial — os endpoints de materialização já existem como funções isoladas.
-
----
-
-### Decisões autônomas iniciais (spec estava incompleta)
-
-| Decisão | Rationale |
-|----------|-----------|
-| Static Bearer token auth (no JWT) | Personal app — single user, no session management needed |
-| `ofxparse` for OFX parsing | More stable than manual XML parsing; supports major Brazilian banks |
-| Bank detection via filename heuristics | Nubank CSV has distinct header; Inter has date format difference; OFX detected by magic bytes |
-| LWW sync with server-wins on tie | Simpler than CRDTs for single-user scenario; `updated_at` microseconds make ties extremely rare |
-| `goals` bucket gets allocation remainder | Prevents 1-cent rounding drift from summing to ≠ surplus |
-| Slider step = 100 cents (R$1) | Granular enough for simulation; prevents excessive re-renders |
-| Soft delete on all financial records | Audit trail; enables sync tombstoning |
-| `device_id` on transactions | Required for future multi-device conflict resolution |
-| Caddy instead of Nginx | Zero-config TLS; simpler Caddyfile vs nginx.conf |
+#### Missões (Goals) — redesign completo + parcelamento
+- Tela completamente refeita em VT323
+- Card de resumo: OURO GUARDADO / FALTAM / PROGRESSO
+- GoalCard redesenhado: GUARDADO / FALTAM / META + barra de progresso
+- Botão `+ NOVA` no header para criar missões
+- Botão de excluir com confirmação "Abandonar missão?"
+- **Sistema de parcelamento:**
+  - Seletor de meses `[ − ] N [ + ]` no formulário
+  - Preview: parcela mensal, total, data da 1ª parcela
+  - 1ª parcela debitada imediatamente ao criar
+  - Meses já passados processados silenciosamente ao abrir a tela
+  - Botão `⚔ PAGAR PARCELA — X G` para o mês atual em aberto
+  - Confirmação com número da parcela (ex: "Parcela 2/6")
+  - `✓ PARCELA DO MÊS RECOLHIDA` após pagamento
+  - Contador `N/M PAGAS` no card
+  - Cada parcela = transação de despesa na categoria **Tesouro**
+- Categoria `goal_deposit` (Tesouro) adicionada ao catálogo
+- `goalStore` extendido: campos `monthly_cents`, `months_total` + função `processInstallments()`

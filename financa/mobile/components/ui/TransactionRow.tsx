@@ -33,10 +33,10 @@ export function TransactionRow({
 
       <View style={styles.content}>
         <Text style={styles.description} numberOfLines={1}>
-          {description}
+          {categoryName ?? description}
         </Text>
-        {categoryName ? (
-          <Text style={styles.category}>{categoryName}</Text>
+        {categoryName && description ? (
+          <Text style={styles.category} numberOfLines={1}>{description}</Text>
         ) : null}
       </View>
 

@@ -11,23 +11,18 @@ import { router } from 'expo-router';
 import { Colors, Spacing } from '@/constants/theme';
 import { performSync } from '@/lib/syncActions';
 import { formatBRL, money } from '@/lib/money';
+import { getReceivedPayments } from '@/lib/businessDays';
 import { useTransactionStore } from '@/store/transactionStore';
 import { useDebtStore } from '@/store/debtStore';
 import { useGoalStore } from '@/store/goalStore';
+import { useSalaryStore } from '@/store/salaryStore';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { BarChart } from '@/components/charts/BarChart';
 import { RPGIcon } from '@/components/ui/RPGIcon';
+import { ScrollCard } from '@/components/ui/ScrollCard';
 
 const MONTH_NAMES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
 
-function CardTitle({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-      {icon}
-      <Text style={styles.cardTitle}>{label}</Text>
-    </View>
-  );
-}
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -40,9 +35,22 @@ export default function DashboardScreen() {
   const { getMonthlyTotals, getTopCategories } = useTransactionStore();
   const { getActiveDebts, getTotalBalance } = useDebtStore();
   const { getActiveGoals } = useGoalStore();
+  const { payment5thCents, payment20thCents, paymentLastCents, totalMonthlyCents } = useSalaryStore();
 
-  const { incomeCents, expenseCents } = getMonthlyTotals(year, month);
-  const surplusCents = incomeCents - expenseCents;
+  const { expenseCents } = getMonthlyTotals(year, month);
+
+  // Quais pagamentos já foram recebidos
+  const { received5th, received20th, receivedLast } = getReceivedPayments(year, month, today);
+  const receivedSoFarCents =
+    (received5th ? payment5thCents : 0) +
+    (received20th ? payment20thCents : 0) +
+    (receivedLast ? paymentLastCents : 0);
+  const pendingCents = totalMonthlyCents() - receivedSoFarCents;
+
+  // Grande: projeção do mês inteiro (total salário - gastos)
+  const projectionCents = totalMonthlyCents() - expenseCents;
+  // Pequeno: saldo atual (recebido - gastos)
+  const currentBalanceCents = receivedSoFarCents - expenseCents;
   const activeDebts = getActiveDebts();
   const totalDebtBalance = getTotalBalance();
   const activeGoals = getActiveGoals();
@@ -104,56 +112,57 @@ export default function DashboardScreen() {
       </View>
 
       {/* Hero Card — Bolsa de Ouro */}
-      <View style={styles.heroCard}>
-        <View style={styles.heroCardInner}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-            <RPGIcon name="sword" size={18} />
-            <Text style={styles.heroLabel}>BOLSA DE OURO</Text>
-          </View>
-          <Text style={[styles.heroAmount, { color: surplusCents >= 0 ? Colors.primary : Colors.tertiary }]}>
-            {formatBRL(money(surplusCents))}
+      <ScrollCard icon="coin_bag" title="BOLSA DE OURO" hero>
+        {/* Grande: projeção do mês */}
+        <Text style={[styles.heroAmount, { color: projectionCents >= 0 ? Colors.primary : Colors.tertiary }]}>
+          {formatBRL(money(projectionCents))}
+        </Text>
+        {/* Pequeno: saldo atual na conta */}
+        <View style={styles.currentBalanceRow}>
+          <Text style={styles.currentBalanceLabel}>NA CONTA</Text>
+          <Text style={[styles.currentBalanceValue, { color: currentBalanceCents >= 0 ? Colors.secondary : Colors.tertiary }]}>
+            {formatBRL(money(currentBalanceCents))}
           </Text>
-          <View style={styles.heroStats}>
-            <View>
-              <Text style={styles.heroStatLabel}>Saques</Text>
-              <Text style={[styles.heroStatValue, { color: Colors.secondary }]}>
-                +{formatBRL(incomeCents)}
-              </Text>
-            </View>
-            <View>
-              <Text style={styles.heroStatLabel}>Tributos</Text>
-              <Text style={styles.heroStatValue}>{formatBRL(money(0))}</Text>
-            </View>
-            <View>
-              <Text style={styles.heroStatLabel}>Gastos</Text>
-              <Text style={[styles.heroStatValue, { color: Colors.tertiary }]}>
-                {formatBRL(expenseCents)}
-              </Text>
-            </View>
+        </View>
+        <View style={styles.heroStats}>
+          <View>
+            <Text style={styles.heroStatLabel}>Recebido</Text>
+            <Text style={[styles.heroStatValue, { color: Colors.secondary }]}>
+              +{formatBRL(money(receivedSoFarCents))}
+            </Text>
+          </View>
+          <View>
+            <Text style={styles.heroStatLabel}>A Receber</Text>
+            <Text style={[styles.heroStatValue, { color: Colors.primary }]}>
+              +{formatBRL(money(pendingCents))}
+            </Text>
+          </View>
+          <View>
+            <Text style={styles.heroStatLabel}>Gastos</Text>
+            <Text style={[styles.heroStatValue, { color: Colors.tertiary }]}>
+              {formatBRL(expenseCents)}
+            </Text>
           </View>
         </View>
-      </View>
+      </ScrollCard>
 
       {/* Bento row — Fluxo de Magia + Reserva Real */}
       <View style={styles.bentoRow}>
-        <View style={[styles.card, { flex: 2 }]}>
-          <CardTitle icon={<RPGIcon name="potion_blue" size={18} />} label="FLUXO DE MAGIA" />
+        <ScrollCard icon="potion_blue" title="FLUXO DE MAGIA" style={{ flex: 2 }}>
           <BarChart data={cashflowBars} height={120} />
-        </View>
+        </ScrollCard>
 
-        <View style={[styles.card, { flex: 1 }]}>
-          <CardTitle icon={<RPGIcon name="shield" size={18} />} label="RESERVA REAL" />
+        <ScrollCard icon="shield" title="RESERVA REAL" style={{ flex: 1 }}>
           <Text style={styles.bigPct}>{Math.round(emergencyPct * 100)}%</Text>
           <Text style={styles.subLabel}>
             Meta: {emergencyGoal ? formatBRL(money(emergencyGoal.target_cents)) : '0,00 G'}
           </Text>
           <ProgressBar progress={emergencyPct} color={Colors.primary} height={6} />
-        </View>
+        </ScrollCard>
       </View>
 
       {/* Ordens de Compra (top categorias) */}
-      <View style={styles.card}>
-        <CardTitle icon={<RPGIcon name="chest" size={18} />} label="ORDENS DE COMPRA" />
+      <ScrollCard icon="chest" title="ORDENS DE COMPRA">
         {topCategories.length === 0 ? (
           <Text style={styles.emptyHint}>Nenhuma ordem registrada este mês.</Text>
         ) : (
@@ -169,23 +178,24 @@ export default function DashboardScreen() {
             ))}
           </View>
         )}
-      </View>
+      </ScrollCard>
 
       {/* Dívidas ao Ferreiro */}
-      <TouchableOpacity style={styles.card} onPress={() => router.push('/debts')}>
-        <CardTitle icon={<RPGIcon name="trident" size={18} />} label="DÍVIDAS AO FERREIRO" />
-        <View style={styles.debtRow}>
-          <Text style={styles.debtLabel}>Títulos de guerra</Text>
-          <Text style={styles.debtValue}>{activeDebts.length} contratos</Text>
-        </View>
-        <View style={styles.separator} />
-        <View style={styles.debtRow}>
-          <Text style={styles.debtLabel}>Saldo total</Text>
-          <Text style={[styles.debtValue, { color: Colors.tertiary }]}>
-            {formatBRL(totalDebtBalance)}
-          </Text>
-        </View>
-        <Text style={styles.tapHint}>Toque para quitar débitos →</Text>
+      <TouchableOpacity onPress={() => router.push('/debts')}>
+        <ScrollCard icon="trident" title="DÍVIDAS AO FERREIRO">
+          <View style={styles.debtRow}>
+            <Text style={styles.debtLabel}>Títulos de guerra</Text>
+            <Text style={styles.debtValue}>{activeDebts.length} contratos</Text>
+          </View>
+          <View style={styles.separator} />
+          <View style={styles.debtRow}>
+            <Text style={styles.debtLabel}>Saldo total</Text>
+            <Text style={[styles.debtValue, { color: Colors.tertiary }]}>
+              {formatBRL(totalDebtBalance)}
+            </Text>
+          </View>
+          <Text style={styles.tapHint}>Toque para quitar débitos →</Text>
+        </ScrollCard>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -217,31 +227,32 @@ const styles = StyleSheet.create({
     color: Colors.onSurfaceVariant,
   },
 
-  heroCard: {
-    borderWidth: 2,
-    borderColor: Colors.outline,
-    backgroundColor: Colors.surfaceHighest,
-  },
-  heroCardInner: {
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    margin: 3,
-    padding: Spacing.xl,
-  },
-  heroLabel: {
-    fontFamily: 'VT323',
-    fontSize: 13,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    color: Colors.onSurfaceVariant,
-    marginBottom: 4,
-  },
   heroAmount: {
     fontFamily: 'VT323',
     fontSize: 44,
     letterSpacing: 1,
     fontVariant: ['tabular-nums'],
   },
+  currentBalanceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'flex-end',
+    gap: Spacing.sm,
+    marginTop: -Spacing.sm,
+  },
+  currentBalanceLabel: {
+    fontFamily: 'VT323',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    color: Colors.onSurfaceVariant,
+  },
+  currentBalanceValue: {
+    fontFamily: 'VT323',
+    fontSize: 22,
+    fontVariant: ['tabular-nums'],
+  },
+
   heroStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -266,21 +277,6 @@ const styles = StyleSheet.create({
   },
 
   bentoRow: { flexDirection: 'row', gap: Spacing.md },
-  card: {
-    backgroundColor: Colors.surfaceLow,
-    padding: Spacing.xl,
-    borderWidth: 2,
-    borderColor: Colors.outlineVariant,
-    borderRadius: 0,
-    gap: Spacing.md,
-  },
-  cardTitle: {
-    fontFamily: 'VT323',
-    fontSize: 13,
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    color: Colors.onSurfaceVariant,
-  },
 
   bigPct: {
     fontFamily: 'VT323',

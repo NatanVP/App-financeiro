@@ -91,10 +91,6 @@ export default function NewTransactionScreen() {
       Alert.alert('Valor inválido', 'Digite um valor maior que zero.');
       return;
     }
-    if (!description.trim()) {
-      Alert.alert('Descrição obrigatória', 'Informe uma descrição para a transação.');
-      return;
-    }
 
     const accountId = selectedAccountId;
     const now = new Date().toISOString();
@@ -176,8 +172,8 @@ export default function NewTransactionScreen() {
         <View style={styles.amountSection}>
           <Text style={[styles.amountLabel, { color: typeColors[txType] }]}>VALOR TOTAL</Text>
           <View style={styles.amountRow}>
-            <Text style={styles.amountPrefix}>G$</Text>
             <Text style={styles.amountText}>{displayAmount}</Text>
+            <Text style={styles.amountSuffix}>G</Text>
           </View>
         </View>
 
@@ -316,8 +312,8 @@ const styles = StyleSheet.create({
   amountSection: { alignItems: 'center', paddingBottom: Spacing.xl },
   amountLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 3, marginBottom: 4 },
   amountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
-  amountPrefix: { fontSize: 18, fontWeight: '700', color: Colors.onSurfaceVariant, opacity: 0.5, fontVariant: ['tabular-nums'] },
-  amountText: { fontSize: 44, fontWeight: '900', color: Colors.onSurface, fontVariant: ['tabular-nums'], letterSpacing: -1.5, lineHeight: 48 },
+  amountText: { fontFamily: 'VT323', fontSize: 52, color: Colors.onSurface, fontVariant: ['tabular-nums'], lineHeight: 56 },
+  amountSuffix: { fontFamily: 'VT323', fontSize: 28, color: Colors.onSurfaceVariant, opacity: 0.6, alignSelf: 'flex-end', paddingBottom: 6 },
   formScroll: { paddingHorizontal: Spacing.xl },
   fieldLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 2, fontWeight: '700', color: Colors.onSurfaceVariant, marginBottom: 8 },
   catScroll: { marginHorizontal: -Spacing.sm },

@@ -44,6 +44,10 @@ export default function RootLayout() {
           name="new-transaction"
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
+        <Stack.Screen
+          name="new-goal"
+          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
         <Stack.Screen name="transactions/[id]" />
         <Stack.Screen name="debts/[id]/simulator" />
         <Stack.Screen name="debts/[id]/index" />
