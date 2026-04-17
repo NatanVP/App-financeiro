@@ -313,6 +313,85 @@ function MiniArcher() {
   );
 }
 
+// ── MonsterEyes ─────────────────────────────────────────────
+type MonsterType = 'orc' | 'ogre' | 'goblin' | 'wolf' | 'troll' | 'cyclops';
+
+function MonsterEyes({ type }: { type: MonsterType }) {
+  switch (type) {
+    case 'orc':
+      // olhos amarelo-verde oblíquos/raivosos
+      return (
+        <View style={{ width: 22, height: 8, position: 'relative' }}>
+          {fp(0, 2, 5, 3, '#9AC810')}
+          {fp(1, 0, 3, 2, '#9AC810')} {/* sobrancelha */}
+          {fp(2, 3, 2, 1, '#080808')}
+          {fp(15, 0, 5, 3, '#9AC810')}
+          {fp(14, 2, 3, 2, '#9AC810')}
+          {fp(16, 1, 2, 1, '#080808')}
+        </View>
+      );
+    case 'ogre':
+      // olhos amarelos grandes, muito separados
+      return (
+        <View style={{ width: 36, height: 10, position: 'relative' }}>
+          {fp(0,  0, 7, 7, '#D0A808')}
+          {fp(2,  2, 3, 3, '#080808')}
+          {fp(1,  0, 2, 1, '#F0C820')}
+          {fp(29, 0, 7, 7, '#D0A808')}
+          {fp(31, 2, 3, 3, '#080808')}
+          {fp(30, 0, 2, 1, '#F0C820')}
+        </View>
+      );
+    case 'goblin':
+      // olhos verde brilhante, pequenos e próximos
+      return (
+        <View style={{ width: 14, height: 7, position: 'relative' }}>
+          {fp(0, 0, 4, 5, '#10E020')}
+          {fp(1, 1, 2, 3, '#080808')}
+          {fp(9, 0, 4, 5, '#10E020')}
+          {fp(10, 1, 2, 3, '#080808')}
+        </View>
+      );
+    case 'wolf':
+      // olhos branco-prateado com pupila vertical fina
+      return (
+        <View style={{ width: 24, height: 8, position: 'relative' }}>
+          {fp(0,  0, 6, 6, '#B8D4B8')}
+          {fp(2,  0, 2, 6, '#080808')}
+          {fp(1,  1, 1, 1, '#E0F0E0')}
+          {fp(18, 0, 6, 6, '#B8D4B8')}
+          {fp(20, 0, 2, 6, '#080808')}
+          {fp(19, 1, 1, 1, '#E0F0E0')}
+        </View>
+      );
+    case 'troll':
+      // olhos vermelho-sangue esbugalhados com veias
+      return (
+        <View style={{ width: 30, height: 9, position: 'relative' }}>
+          {fp(0,  0, 7, 7, '#B02818')}
+          {fp(2,  2, 3, 3, '#080808')}
+          {fp(0,  3, 2, 1, '#D04020')}
+          {fp(6,  1, 1, 3, '#802010')}
+          {fp(22, 0, 7, 7, '#B02818')}
+          {fp(24, 2, 3, 3, '#080808')}
+          {fp(22, 3, 2, 1, '#D04020')}
+          {fp(28, 1, 1, 3, '#802010')}
+        </View>
+      );
+    case 'cyclops':
+      // um único olho enorme amarelo-alaranjado
+      return (
+        <View style={{ width: 14, height: 12, position: 'relative' }}>
+          {fp(0, 0, 14, 12, '#C89800')}
+          {fp(3, 2,  8,  8, '#080808')}
+          {fp(2, 1,  3,  2, '#E0B000')}
+          {fp(9, 8,  2,  2, '#604800')}
+        </View>
+      );
+    default: return null;
+  }
+}
+
 // ── GrassDivider ────────────────────────────────────────────
 function GrassDivider() {
   const { width } = useWindowDimensions();
@@ -355,60 +434,121 @@ function ForestHeader({ insetTop, onNew }: { insetTop: number; onNew: () => void
       {/* Cena floresta */}
       <View style={{ height: 178, position: 'relative', backgroundColor: F.leaf0, overflow: 'hidden' }}>
 
-        {/* === ÁRVORES FUNDO === */}
-        <TreeCrown x={-10} y={0} w={64} />
-        <TreeTrunk x={12}  y={28} w={14} h={150} />
+        {/* ═══════════════════════════════════════════════
+            CAMADA 1 — ÁRVORES DE FUNDO (mais escuras)
+            Distribuídas uniformemente por toda a largura
+        ═══════════════════════════════════════════════ */}
+        {[0.00, 0.09, 0.18, 0.27, 0.36, 0.45, 0.55, 0.64, 0.73, 0.82, 0.91, 1.00].map((frac, i) => {
+          const bx = frac * width;
+          const cw = 42 + (i % 4) * 10;
+          const yo = (i % 5) * 4;
+          const tw = 9 + (i % 3) * 3;
+          return (
+            <React.Fragment key={`t1-${i}`}>
+              <TreeCrown x={bx - cw / 2} y={yo - 6} w={cw} />
+              <TreeTrunk x={bx - tw / 2} y={yo + 26} w={tw} h={152 - yo} />
+            </React.Fragment>
+          );
+        })}
 
-        <TreeCrown x={46}  y={6} w={52} />
-        <TreeTrunk x={66}  y={32} w={12} h={146} />
+        {/* ═══════════════════════════════════════════════
+            CAMADA 2 — ÁRVORES MÉDIAS (intercaladas)
+        ═══════════════════════════════════════════════ */}
+        {[0.045, 0.135, 0.225, 0.315, 0.41, 0.50, 0.595, 0.685, 0.775, 0.865, 0.955].map((frac, i) => {
+          const bx = frac * width;
+          const cw = 36 + (i % 3) * 12;
+          const yo = 6 + (i % 6) * 4;
+          const tw = 7 + (i % 2) * 4;
+          return (
+            <React.Fragment key={`t2-${i}`}>
+              <TreeCrown x={bx - cw / 2} y={yo} w={cw} />
+              <TreeTrunk x={bx - tw / 2} y={yo + 30} w={tw} h={148 - yo} />
+            </React.Fragment>
+          );
+        })}
 
-        <TreeCrown x={width - 54}  y={4}  w={56} />
-        <TreeTrunk x={width - 34}  y={28} w={14} h={150} />
+        {/* ═══════════════════════════════════════════════
+            COBERTURA LATERAL DENSA (escuridão da mata)
+        ═══════════════════════════════════════════════ */}
+        {/* Esquerda */}
+        <View style={{ position: 'absolute', left: 0, top: 0, width: 86, height: 178, backgroundColor: F.leaf0 }} />
+        <View style={{ position: 'absolute', left: 0, top: 30, width: 70, height: 148, backgroundColor: '#081806' }} />
+        <View style={{ position: 'absolute', left: 0, top: 60, width: 56, height: 118, backgroundColor: '#040E02' }} />
+        {/* Direita */}
+        <View style={{ position: 'absolute', right: 0, top: 0, width: 86, height: 178, backgroundColor: F.leaf0 }} />
+        <View style={{ position: 'absolute', right: 0, top: 30, width: 70, height: 148, backgroundColor: '#081806' }} />
+        <View style={{ position: 'absolute', right: 0, top: 60, width: 56, height: 118, backgroundColor: '#040E02' }} />
 
-        <TreeCrown x={width - 102} y={8}  w={52} />
-        <TreeTrunk x={width - 82}  y={32} w={12} h={146} />
+        {/* ═══════════════════════════════════════════════
+            OLHOS DE MONSTROS NA ESCURIDÃO
+        ═══════════════════════════════════════════════ */}
+        {/* ESQUERDA */}
+        {/* Orc atrás das árvores, alto */}
+        <View style={{ position: 'absolute', left: 6, top: 72 }} pointerEvents="none">
+          <MonsterEyes type="orc" />
+        </View>
+        {/* Goblin, mais embaixo */}
+        <View style={{ position: 'absolute', left: 30, top: 106 }} pointerEvents="none">
+          <MonsterEyes type="goblin" />
+        </View>
+        {/* Lobo, rente ao chão */}
+        <View style={{ position: 'absolute', left: 10, top: 142 }} pointerEvents="none">
+          <MonsterEyes type="wolf" />
+        </View>
+        {/* Troll mais ao fundo (escondido) */}
+        <View style={{ position: 'absolute', left: 44, top: 78 }} pointerEvents="none">
+          <MonsterEyes type="troll" />
+        </View>
 
-        {/* === FOLHAGEM LATERAL DENSA === */}
-        <View style={{ position: 'absolute', left: 0,   top: 70, width: 72, height: 108, backgroundColor: F.leaf1 }} />
-        <View style={{ position: 'absolute', left: 0,   top: 98, width: 58, height: 80,  backgroundColor: F.leaf0 }} />
-        <View style={{ position: 'absolute', right: 0,  top: 68, width: 72, height: 110, backgroundColor: F.leaf1 }} />
-        <View style={{ position: 'absolute', right: 0,  top: 96, width: 58, height: 82,  backgroundColor: F.leaf0 }} />
+        {/* DIREITA */}
+        {/* Ogre grande, destaque */}
+        <View style={{ position: 'absolute', right: 14, top: 84 }} pointerEvents="none">
+          <MonsterEyes type="ogre" />
+        </View>
+        {/* Ciclope, sozinho no meio */}
+        <View style={{ position: 'absolute', right: 52, top: 66 }} pointerEvents="none">
+          <MonsterEyes type="cyclops" />
+        </View>
+        {/* Goblin atrás, baixo */}
+        <View style={{ position: 'absolute', right: 8, top: 148 }} pointerEvents="none">
+          <MonsterEyes type="goblin" />
+        </View>
+        {/* Orc diferente posição */}
+        <View style={{ position: 'absolute', right: 38, top: 118 }} pointerEvents="none">
+          <MonsterEyes type="orc" />
+        </View>
 
-        {/* Arbustos baixos */}
-        <View style={{ position: 'absolute', left: 60,  top: 138, width: 32, height: 14, backgroundColor: F.leaf2 }} />
-        <View style={{ position: 'absolute', left: 68,  top: 132, width: 18, height: 10, backgroundColor: F.leaf3 }} />
-        <View style={{ position: 'absolute', right: 60, top: 136, width: 32, height: 16, backgroundColor: F.leaf2 }} />
-        <View style={{ position: 'absolute', right: 68, top: 130, width: 18, height: 12, backgroundColor: F.leaf3 }} />
+        {/* Arbustos baixos (cobrem a parte das pernas dos monstros) */}
+        <View style={{ position: 'absolute', left: 0,  top: 152, width: 80, height: 26, backgroundColor: F.leaf1 }} />
+        <View style={{ position: 'absolute', right: 0, top: 150, width: 80, height: 28, backgroundColor: F.leaf1 }} />
+        <View style={{ position: 'absolute', left: 0,  top: 162, width: 65, height: 16, backgroundColor: F.leaf0 }} />
+        <View style={{ position: 'absolute', right: 0, top: 160, width: 65, height: 18, backgroundColor: F.leaf0 }} />
 
-        {/* === CHÃO / TRILHA === */}
+        {/* ═══════════════════════════════════════════════
+            CHÃO / TRILHA
+        ═══════════════════════════════════════════════ */}
         <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 12, backgroundColor: F.grass0 }} />
-        <View style={{ position: 'absolute', bottom: 5, left: 0, right: 0, height: 7,  backgroundColor: F.grass1 }} />
-        {/* trilha de terra no centro */}
+        <View style={{ position: 'absolute', bottom: 5, left: 0, right: 0, height: 7, backgroundColor: F.grass1 }} />
         <View style={{ position: 'absolute', bottom: 0, left: cx - 90, width: 180, height: 18, backgroundColor: F.dirt1 }} />
         <View style={{ position: 'absolute', bottom: 0, left: cx - 70, width: 140, height: 12, backgroundColor: F.dirt2 }} />
-        {/* sulcos de roda */}
         <View style={{ position: 'absolute', bottom: 4, left: cx - 55, width: 4, height: 8, backgroundColor: F.dirt0 }} />
         <View style={{ position: 'absolute', bottom: 4, left: cx + 50, width: 4, height: 8, backgroundColor: F.dirt0 }} />
 
-        {/* === CAVALOS === */}
+        {/* ═══════════════════════════════════════════════
+            CARAVANA
+        ═══════════════════════════════════════════════ */}
         <View style={{ position: 'absolute', bottom: 12, left: h1x }}>
           <PixelHorse dark />
         </View>
         <View style={{ position: 'absolute', bottom: 14, left: h2x }}>
           <PixelHorse />
         </View>
-
-        {/* === CARRUAGEM === */}
         <View style={{ position: 'absolute', bottom: 10, left: carx }}>
           <PixelCarriage />
         </View>
-
-        {/* === CONDUTOR no banco === */}
         <View style={{ position: 'absolute', bottom: 58, left: carx + 32 }}>
           <PixelDriver />
         </View>
-
-        {/* === PERSONAGENS NA JANELA === */}
         <View style={{ position: 'absolute', bottom: 26, left: carx + 64, flexDirection: 'row', gap: 2 }}>
           <MiniMage />
           <MiniPaladin />
@@ -417,11 +557,13 @@ function ForestHeader({ insetTop, onNew }: { insetTop: number; onNew: () => void
         </View>
 
         {/* Raios de luz filtrada */}
-        {[0.33, 0.50, 0.67].map((f, i) => (
-          <View key={i} style={{ position: 'absolute', left: width * f, top: 0, width: 3, height: 178, backgroundColor: F.leaf3, opacity: 0.10 }} />
+        {[0.38, 0.50, 0.62].map((f, i) => (
+          <View key={i} style={{ position: 'absolute', left: width * f, top: 0, width: 3, height: 178, backgroundColor: F.leaf3, opacity: 0.08 }} />
         ))}
 
-        {/* === TÍTULO === */}
+        {/* ═══════════════════════════════════════════════
+            TÍTULO + BOTÃO
+        ═══════════════════════════════════════════════ */}
         <View style={{ position: 'absolute', top: 8, left: 14 }}>
           <Text style={{ fontFamily: 'VT323', fontSize: 10, letterSpacing: 2, color: F.leaf4 }}>⚔ CARAVANA</Text>
           <Text style={{ fontFamily: 'VT323', fontSize: 32, letterSpacing: 1, color: F.cream, textShadowColor: '#000000', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 0 }}>
@@ -429,8 +571,6 @@ function ForestHeader({ insetTop, onNew }: { insetTop: number; onNew: () => void
           </Text>
           <Text style={{ fontFamily: 'VT323', fontSize: 11, letterSpacing: 2, color: F.leaf3 }}>DA GUILDA</Text>
         </View>
-
-        {/* === BOTÃO === */}
         <TouchableOpacity
           style={{ position: 'absolute', top: 8, right: 12, backgroundColor: F.cart2, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 2, borderColor: F.cartHi }}
           onPress={onNew}
