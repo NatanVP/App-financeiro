@@ -5,23 +5,27 @@ import React from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { formatBRL, money } from '@/lib/money';
 import { useTransactionStore } from '@/store/transactionStore';
-import { CATEGORY_MAP } from '@/constants/categories';
+import { useCategoryStore } from '@/store/categoryStore';
+import { useAccountStore } from '@/store/accountStore';
+import { RPGIcon } from '@/components/ui/RPGIcon';
 
 const TYPE_LABEL: Record<string, string> = {
-  expense: 'Despesa',
-  income: 'Receita',
+  expense:  'Despesa',
+  income:   'Receita',
   transfer: 'Transferência',
+  credit:   'Crédito',
 };
 
 const TYPE_COLOR: Record<string, string> = {
   expense: Colors.tertiary,
   income: Colors.secondary,
   transfer: Colors.primary,
+  credit: '#64B5F6',
 };
 
 function formatDatePtBR(iso: string): string {
@@ -34,6 +38,8 @@ export default function TransactionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { transactions, deleteTransaction } = useTransactionStore();
+  const { getCategoryName, getCategoryIcon } = useCategoryStore();
+  const { getActiveAccounts } = useAccountStore();
 
   const tx = transactions.find((t) => t.id === id);
 
@@ -54,8 +60,18 @@ export default function TransactionDetailScreen() {
     );
   }
 
-  const category = tx.category_id ? CATEGORY_MAP[tx.category_id] : null;
+  const categoryName = tx.category_id ? getCategoryName(tx.category_id) : null;
+  const categoryIcon = tx.category_id ? getCategoryIcon(tx.category_id) : null;
   const typeColor = TYPE_COLOR[tx.type] ?? Colors.primary;
+  const accounts = getActiveAccounts();
+  const accountName = accounts.find((account) => account.id === tx.account_id)?.name ?? tx.account_id;
+  const transferAccountName = tx.transfer_to_account_id
+    ? accounts.find((account) => account.id === tx.transfer_to_account_id)?.name ?? tx.transfer_to_account_id
+    : null;
+  const amountPrefix =
+    tx.type === 'expense' || tx.type === 'credit' ? '−' :
+    tx.type === 'transfer' ? '↔' :
+    '+';
 
   const handleDelete = () => {
     Alert.alert(
@@ -95,7 +111,7 @@ export default function TransactionDetailScreen() {
             {TYPE_LABEL[tx.type] ?? tx.type}
           </Text>
           <Text style={[styles.amount, { color: typeColor }]}>
-            {tx.type === 'expense' ? '−' : '+'} G$ {formatBRL(money(tx.amount_cents))}
+            {amountPrefix} G$ {formatBRL(money(tx.amount_cents))}
           </Text>
         </View>
 
@@ -105,19 +121,27 @@ export default function TransactionDetailScreen() {
           <Divider />
           <Row label="Data" value={formatDatePtBR(tx.date)} />
           <Divider />
-          {category && (
+          {categoryName && (
             <>
               <View style={styles.row}>
                 <Text style={styles.rowLabel}>Categoria</Text>
                 <View style={styles.catValue}>
-                  <MaterialCommunityIcons name={category.icon} size={16} color={Colors.primary} />
-                  <Text style={styles.rowValue}>{category.name}</Text>
+                  {categoryIcon && <RPGIcon name={categoryIcon} size={16} chip={false} />}
+                  <Text style={styles.rowValue}>{categoryName}</Text>
                 </View>
               </View>
               <Divider />
             </>
           )}
-          <Row label="Conta" value="Nubank" />
+          {tx.type === 'transfer' ? (
+            <>
+              <Row label="De" value={accountName} />
+              <Divider />
+              <Row label="Para" value={transferAccountName ?? 'Conta'} />
+            </>
+          ) : (
+            <Row label="Conta" value={accountName} />
+          )}
           <Divider />
           <Row label="Reconciliado" value={tx.is_reconciled ? 'Sim' : 'Não'} />
           {tx.notes ? (

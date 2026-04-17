@@ -13,7 +13,7 @@ function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {
     index:        'shield-home-outline',    // Guilda / Dashboard
     transactions: 'book-open-page-variant-outline', // Crônicas
     goals:        'flag-checkered',         // Missões
-    more:         'treasure-chest',          // Bolsa / Tesouro
+    more:         'crystal-ball',           // Grimório / Configurações
   };
   const icon = icons[name] ?? 'circle-outline';
   return (
@@ -92,7 +92,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="more"
         options={{
-          title: 'Bolsa',
+          title: 'Grimório',
           tabBarIcon: ({ focused }) => <TabBarIcon name="more" focused={focused} />,
         }}
       />

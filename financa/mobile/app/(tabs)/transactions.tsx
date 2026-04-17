@@ -18,8 +18,16 @@ import { formatBRL, money } from '@/lib/money';
 import { useTransactionStore, Transaction } from '@/store/transactionStore';
 import { useCategoryStore } from '@/store/categoryStore';
 import { TransactionRow } from '@/components/ui/TransactionRow';
+import { useCreditStore } from '@/store/creditStore';
+import {
+  getCurrentInvoiceMonthKey,
+  getInvoiceMonthKey,
+  getInvoiceClosingDate,
+  isInvoiceClosed,
+  formatInvoiceLabel,
+} from '@/lib/credit';
 
-type FilterType = 'all' | 'income' | 'expense';
+type FilterType = 'all' | 'income' | 'expense' | 'credit';
 
 interface Section {
   title: string;
@@ -45,6 +53,7 @@ function groupByDate(transactions: Transaction[]): Section[] {
         date === today ? 'Hoje' : date === yesterday ? 'Ontem' : formatDatePtBR(date);
       const totalCents = items.reduce((s, t) => {
         if (t.type === 'income') return s + t.amount_cents;
+        if (t.type === 'transfer') return s;
         return s - t.amount_cents;
       }, 0);
       return { title: `${label}, ${formatDayMonth(date)}`, totalCents, isPositive: totalCents >= 0, data: items };
@@ -67,6 +76,7 @@ const FILTERS: { key: FilterType; label: string }[] = [
   { key: 'all',     label: 'TODOS'   },
   { key: 'income',  label: 'RECEITA' },
   { key: 'expense', label: 'DESPESA' },
+  { key: 'credit',  label: 'CRÉDITO' },
 ];
 
 export default function TransactionsScreen() {
@@ -76,12 +86,32 @@ export default function TransactionsScreen() {
   const [query, setQuery] = useState('');
 
   const { transactions } = useTransactionStore();
-  const { getCategoryName } = useCategoryStore();
+  const { getCategoryName, getCategoryIcon } = useCategoryStore();
+  const { closingDay, enabled: creditEnabled } = useCreditStore();
+
+  // Current invoice data
+  const currentInvoiceKey = getCurrentInvoiceMonthKey(closingDay);
+  const invoiceClosed = isInvoiceClosed(currentInvoiceKey, closingDay);
+  const invoiceClosingDate = getInvoiceClosingDate(currentInvoiceKey, closingDay);
+  const invoiceClosingLabel = invoiceClosingDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  const invoiceTotalCents = transactions
+    .filter(
+      (t) =>
+        !t.deleted_at &&
+        t.type === 'credit' &&
+        getInvoiceMonthKey(t.date, closingDay) === currentInvoiceKey,
+    )
+    .reduce((s, t) => s + t.amount_cents, 0);
 
   const visible = useMemo(() => {
-    let list = transactions.filter((t) => !t.deleted_at);
+    let list = transactions.filter((t) => !t.deleted_at && t.type !== 'credit');
 
-    if (filter !== 'all') list = list.filter((t) => t.type === filter);
+    if (filter === 'credit') {
+      // Show all credit transactions (already filtered by type !== credit above, so re-add them)
+      list = transactions.filter((t) => !t.deleted_at && t.type === 'credit');
+    } else if (filter !== 'all') {
+      list = list.filter((t) => t.type === filter);
+    }
 
     if (query.trim()) {
       const q = query.trim().toLowerCase();
@@ -142,7 +172,9 @@ export default function TransactionsScreen() {
 
       {/* Filtros */}
       <View style={styles.filters}>
-        {FILTERS.map((f) => (
+        {FILTERS
+          .filter((f) => f.key !== 'credit' || creditEnabled)
+          .map((f) => (
           <TouchableOpacity
             key={f.key}
             style={[styles.chip, filter === f.key && styles.chipActive]}
@@ -154,6 +186,34 @@ export default function TransactionsScreen() {
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* Fatura do cartão — sempre visível quando crédito habilitado */}
+      {creditEnabled && (
+        <TouchableOpacity
+          style={[
+            styles.invoiceRow,
+            invoiceClosed && styles.invoiceRowClosed,
+          ]}
+          onPress={() => setFilter('credit')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.invoiceLeft}>
+            <Text style={[styles.invoiceTitle, invoiceClosed && { color: Colors.tertiary }]}>
+              FATURA {formatInvoiceLabel(currentInvoiceKey)}
+            </Text>
+            <Text style={styles.invoiceHint}>
+              {invoiceClosed ? '⚠ FECHADA — PAGAR' : `Fecha ${invoiceClosingLabel}`}
+            </Text>
+          </View>
+          <Text style={[
+            styles.invoiceAmount,
+            invoiceClosed ? { color: Colors.tertiary } : { color: '#64B5F6' },
+            !invoiceClosed && invoiceTotalCents === 0 && styles.invoiceAmountEmpty,
+          ]}>
+            {formatBRL(money(invoiceTotalCents))}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {/* Lista agrupada por data */}
       <SectionList
@@ -174,6 +234,7 @@ export default function TransactionsScreen() {
           <TransactionRow
             description={item.description}
             categoryName={item.category_id ? getCategoryName(item.category_id) : undefined}
+            categoryIcon={item.category_id ? getCategoryIcon(item.category_id) : undefined}
             amountCents={item.amount_cents}
             type={item.type}
             onPress={() => router.push(`/transactions/${item.id}`)}
@@ -313,5 +374,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     letterSpacing: 2,
     color: `${Colors.onSurfaceVariant}60`,
+  },
+
+  invoiceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 10,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.sm,
+    backgroundColor: `${'#64B5F6'}10`,
+    borderWidth: 1,
+    borderColor: `${'#64B5F6'}30`,
+  },
+  invoiceRowClosed: {
+    backgroundColor: `${Colors.tertiary}12`,
+    borderColor: `${Colors.tertiary}50`,
+  },
+  invoiceLeft: { gap: 2 },
+  invoiceTitle: {
+    fontFamily: 'VT323',
+    fontSize: 14,
+    letterSpacing: 2,
+    color: '#64B5F6',
+  },
+  invoiceHint: {
+    fontFamily: 'VT323',
+    fontSize: 10,
+    letterSpacing: 1,
+    color: Colors.onSurfaceVariant,
+  },
+  invoiceAmount: {
+    fontFamily: 'VT323',
+    fontSize: 20,
+    fontVariant: ['tabular-nums'],
+  },
+  invoiceAmountEmpty: {
+    opacity: 0.4,
   },
 });

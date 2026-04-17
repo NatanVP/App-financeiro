@@ -14,14 +14,22 @@ import { formatBRL, money } from '@/lib/money';
 import { getReceivedPayments } from '@/lib/businessDays';
 import { useTransactionStore } from '@/store/transactionStore';
 import { useDebtStore } from '@/store/debtStore';
-import { useGoalStore } from '@/store/goalStore';
 import { useSalaryStore } from '@/store/salaryStore';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { BarChart } from '@/components/charts/BarChart';
-import { RPGIcon } from '@/components/ui/RPGIcon';
 import { ScrollCard } from '@/components/ui/ScrollCard';
+import { BankIcon } from '@/components/ui/BankIcon';
+import { CreditInvoiceWidget } from '@/components/ui/CreditInvoiceWidget';
+import { useCreditStore } from '@/store/creditStore';
+import { useAccountStore } from '@/store/accountStore';
 
 const MONTH_NAMES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+const ACCOUNT_ORDER = ['nubank', 'itau', 'inter'] as const;
+const ACCOUNT_LABELS: Record<string, string> = {
+  nubank: 'Nubank',
+  itau: 'Itaú',
+  inter: 'Inter',
+};
 
 
 export default function DashboardScreen() {
@@ -32,10 +40,11 @@ export default function DashboardScreen() {
   const year = today.getFullYear();
   const month = today.getMonth() + 1;
 
-  const { getMonthlyTotals, getTopCategories } = useTransactionStore();
+  const { transactions, getMonthlyTotals, getTopCategories } = useTransactionStore();
+  const { closingDay, dueDay, enabled: creditEnabled } = useCreditStore();
   const { getActiveDebts, getTotalBalance } = useDebtStore();
-  const { getActiveGoals } = useGoalStore();
-  const { payment5thCents, payment20thCents, paymentLastCents, totalMonthlyCents } = useSalaryStore();
+  const { payment5thCents, payment20thCents, paymentLastCents, salaryAccountId, totalMonthlyCents } = useSalaryStore();
+  const { getActiveAccounts } = useAccountStore();
 
   const { expenseCents } = getMonthlyTotals(year, month);
 
@@ -53,7 +62,37 @@ export default function DashboardScreen() {
   const currentBalanceCents = receivedSoFarCents - expenseCents;
   const activeDebts = getActiveDebts();
   const totalDebtBalance = getTotalBalance();
-  const activeGoals = getActiveGoals();
+  const activeAccounts = getActiveAccounts();
+  const realmAccounts = ACCOUNT_ORDER
+    .map((accountId) => activeAccounts.find((account) => account.id === accountId))
+    .filter((account): account is NonNullable<typeof account> => Boolean(account))
+    .map((account) => {
+      let runningBalance = account.balance_cents;
+
+      if (account.id === salaryAccountId) {
+        runningBalance += receivedSoFarCents;
+      }
+
+      for (const tx of transactions) {
+        if (tx.deleted_at || tx.type === 'credit') continue;
+
+        if (tx.type === 'transfer') {
+          if (tx.account_id === account.id) runningBalance -= tx.amount_cents;
+          if (tx.transfer_to_account_id === account.id) runningBalance += tx.amount_cents;
+          continue;
+        }
+
+        if (tx.account_id !== account.id) continue;
+        if (tx.type === 'income') runningBalance += tx.amount_cents;
+        if (tx.type === 'expense') runningBalance -= tx.amount_cents;
+      }
+
+      return {
+        ...account,
+        displayName: ACCOUNT_LABELS[account.id] ?? account.name,
+        currentBalanceCents: money(runningBalance),
+      };
+    });
 
   const cashflowBars = MONTH_NAMES.map((label, i) => {
     const { incomeCents: inc, expenseCents: exp } = getMonthlyTotals(year, i + 1);
@@ -66,11 +105,6 @@ export default function DashboardScreen() {
 
   const topCategories = getTopCategories(year, month);
   const maxCatAmount = Math.max(...topCategories.map((c) => c.amountCents), 1);
-
-  const emergencyGoal = activeGoals.find((g) => g.name.toLowerCase().includes('emergência'));
-  const emergencyPct = emergencyGoal
-    ? emergencyGoal.current_cents / emergencyGoal.target_cents
-    : 0;
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -146,20 +180,53 @@ export default function DashboardScreen() {
         </View>
       </ScrollCard>
 
-      {/* Bento row — Fluxo de Magia + Reserva Real */}
-      <View style={styles.bentoRow}>
-        <ScrollCard icon="potion_blue" title="FLUXO DE MAGIA" style={{ flex: 2 }}>
-          <BarChart data={cashflowBars} height={120} />
-        </ScrollCard>
+      {/* Cofres do Reino */}
+      <ScrollCard icon="gem" title="COFRES DO REINO">
+        {realmAccounts.length === 0 ? (
+          <Text style={styles.emptyHint}>Nenhum cofre ativo encontrado.</Text>
+        ) : (
+          <View style={styles.accountsList}>
+            {realmAccounts.map((account, index) => (
+              <React.Fragment key={account.id}>
+                <View style={styles.accountRow}>
+                  <View style={styles.accountRowLeft}>
+                    <BankIcon bank={account.id} size={28} />
+                    <View style={styles.accountInfo}>
+                      <Text style={styles.accountName}>{account.displayName}</Text>
+                      <Text style={styles.accountMeta}>Saldo disponível</Text>
+                    </View>
+                  </View>
+                  <Text
+                    style={[
+                      styles.accountBalance,
+                      {
+                        color:
+                          account.currentBalanceCents >= 0 ? Colors.secondaryFixed : Colors.tertiary,
+                      },
+                    ]}
+                  >
+                    {formatBRL(account.currentBalanceCents)}
+                  </Text>
+                </View>
+                {index < realmAccounts.length - 1 && <View style={styles.separator} />}
+              </React.Fragment>
+            ))}
+          </View>
+        )}
+      </ScrollCard>
 
-        <ScrollCard icon="shield" title="RESERVA REAL" style={{ flex: 1 }}>
-          <Text style={styles.bigPct}>{Math.round(emergencyPct * 100)}%</Text>
-          <Text style={styles.subLabel}>
-            Meta: {emergencyGoal ? formatBRL(money(emergencyGoal.target_cents)) : '0,00 G'}
-          </Text>
-          <ProgressBar progress={emergencyPct} color={Colors.primary} height={6} />
-        </ScrollCard>
-      </View>
+      {creditEnabled && (
+        <CreditInvoiceWidget
+          closingDay={closingDay}
+          dueDay={dueDay}
+          onPress={() => router.push('/(tabs)/transactions')}
+        />
+      )}
+
+      {/* Fluxo de Magia */}
+      <ScrollCard icon="potion_blue" title="FLUXO DE MAGIA">
+        <BarChart data={cashflowBars} height={120} />
+      </ScrollCard>
 
       {/* Ordens de Compra (top categorias) */}
       <ScrollCard icon="chest" title="ORDENS DE COMPRA">
@@ -276,7 +343,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  bentoRow: { flexDirection: 'row', gap: Spacing.md },
 
   bigPct: {
     fontFamily: 'VT323',
@@ -292,6 +358,39 @@ const styles = StyleSheet.create({
   },
 
   emptyHint: { fontFamily: 'VT323', fontSize: 13, color: Colors.onSurfaceVariant, marginTop: 4 },
+  accountsList: { gap: 0 },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.sm,
+  },
+  accountRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    flex: 1,
+    paddingRight: Spacing.md,
+  },
+  accountInfo: { gap: 2 },
+  accountName: {
+    fontFamily: 'VT323',
+    fontSize: 16,
+    color: Colors.onSurface,
+  },
+  accountMeta: {
+    fontFamily: 'VT323',
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    color: Colors.onSurfaceVariant,
+  },
+  accountBalance: {
+    fontFamily: 'VT323',
+    fontSize: 18,
+    fontVariant: ['tabular-nums'],
+    textAlign: 'right',
+  },
   catRow: { flexDirection: 'row', justifyContent: 'space-between' },
   catName: { fontFamily: 'VT323', fontSize: 14, color: Colors.onSurface },
   catAmount: { fontFamily: 'VT323', fontSize: 14, fontVariant: ['tabular-nums'], color: Colors.onSurface },

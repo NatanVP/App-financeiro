@@ -18,7 +18,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 export default function GoalsScreen() {
   const insets = useSafeAreaInsets();
   const { getActiveGoals, getTotalProgress, deleteGoal, updateGoal, processInstallments } = useGoalStore();
-  const { addTransaction, transactions } = useTransactionStore();
+  const { addTransaction, transactions, deleteTransaction } = useTransactionStore();
   const { getActiveAccounts } = useAccountStore();
   const defaultAccountId = getActiveAccounts()[0]?.id ?? 'nubank';
 
@@ -173,7 +173,17 @@ export default function GoalsScreen() {
                   `"${goal.name}" será removida. O dinheiro guardado não volta automaticamente.`,
                   [
                     { text: 'Cancelar', style: 'cancel' },
-                    { text: 'Abandonar', style: 'destructive', onPress: () => deleteGoal(goal.id) },
+                    {
+                    text: 'Abandonar',
+                    style: 'destructive',
+                    onPress: () => {
+                      // Remove todas as transações vinculadas à missão
+                      transactions
+                        .filter((t) => !t.deleted_at && t.notes === goal.id)
+                        .forEach((t) => deleteTransaction(t.id));
+                      deleteGoal(goal.id);
+                    },
+                  },
                   ]
                 )
               }

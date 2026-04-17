@@ -21,8 +21,6 @@ import { Colors, Spacing } from '@/constants/theme';
 import { money, Money, formatBRL } from '@/lib/money';
 import { NumPad } from '@/components/ui/NumPad';
 import { useGoalStore } from '@/store/goalStore';
-import { useTransactionStore } from '@/store/transactionStore';
-import { useAccountStore } from '@/store/accountStore';
 
 const GOAL_COLORS = [
   Colors.primary,
@@ -43,9 +41,6 @@ export default function NewGoalScreen() {
   const [saving, setSaving] = useState(false);
 
   const { addGoal } = useGoalStore();
-  const { addTransaction, transactions } = useTransactionStore();
-  const { getActiveAccounts } = useAccountStore();
-  const defaultAccountId = getActiveAccounts()[0]?.id ?? 'nubank';
 
   const parseCents = (input: string): Money => {
     const val = parseFloat(input.replace(',', '.'));
@@ -101,31 +96,13 @@ export default function NewGoalScreen() {
         id: goalId,
         name: name.trim(),
         target_cents: targetCents,
-        current_cents: months === 1 ? targetCents : money(0),
+        current_cents: money(0),
         target_date: isoDate,
         icon: 'flag',
         color,
         status: 'active',
         monthly_cents: monthlyCents,
         months_total: months,
-        created_at: now,
-        updated_at: now,
-        deleted_at: null,
-      });
-
-      // Sempre cria a 1ª parcela imediatamente
-      addTransaction({
-        id: `tx-inst-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        account_id: defaultAccountId,
-        category_id: 'goal_deposit',
-        amount_cents: monthlyCents,
-        type: 'expense',
-        description: months === 1 ? `Missão: ${name.trim()}` : `Parcela 1/${months}: ${name.trim()}`,
-        date: today,
-        notes: goalId,
-        transfer_to_account_id: null,
-        is_reconciled: false,
-        device_id: null,
         created_at: now,
         updated_at: now,
         deleted_at: null,
@@ -215,14 +192,8 @@ export default function NewGoalScreen() {
                     <Text style={styles.previewLabel}>TOTAL DE PARCELAS</Text>
                     <Text style={styles.previewValue}>{months}× {formatBRL(monthlyCents)}</Text>
                   </View>
-                  <View style={styles.previewRow}>
-                    <Text style={styles.previewLabel}>1ª PARCELA</Text>
-                    <Text style={[styles.previewValue, { color: Colors.tertiary }]}>
-                      HOJE — {formatBRL(monthlyCents)}
-                    </Text>
-                  </View>
                   <Text style={styles.previewHint}>
-                    ⚔ {formatBRL(monthlyCents)} serão debitados agora e nos próximos {months - 1} meses
+                    ⚔ Pague {formatBRL(monthlyCents)}/mês pela tela de missões
                   </Text>
                 </>
               ) : (
@@ -234,7 +205,7 @@ export default function NewGoalScreen() {
                     </Text>
                   </View>
                   <Text style={styles.previewHint}>
-                    ⚔ Valor integral debitado hoje
+                    ⚔ Pague pela tela de missões quando quiser recolher
                   </Text>
                 </>
               )}
