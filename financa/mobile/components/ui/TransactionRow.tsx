@@ -38,14 +38,6 @@ const P = {
   torch:    '#D4860A',
 };
 
-// ── Variantes de musgo (pixel art) ─────────────────────────
-// Cada entrada: [dx, dy, colorIndex (0=ivy0..4=ivy4)]
-const MOSS_TL = [
-  [0,0,3],[4,0,2],[0,4,2],[4,4,3],[8,0,1],[0,8,1],[4,8,2],[8,4,2],
-];
-const MOSS_BR = [
-  [0,0,2],[4,0,3],[0,4,3],[4,4,2],[8,0,1],[4,8,1],
-];
 const IVY_C = [P.ivy0, P.ivy1, P.ivy2, P.ivy3, P.ivy4];
 
 interface Props {
@@ -110,26 +102,9 @@ export function TransactionRow({
         {/* ── Corpo do bloco ──────────────────────── */}
         <View style={styles.body}>
 
-          {/* Pixels de musgo canto superior esquerdo (variant 1) */}
+          {/* Barra de musgo lateral esquerda (variant 1) */}
           {variant === 1 && (
-            <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-              {MOSS_TL.map(([dx, dy, ci], i) => (
-                <View key={`tl${i}`} style={{
-                  position: 'absolute',
-                  left: dx, top: dy,
-                  width: 4, height: 4,
-                  backgroundColor: IVY_C[ci],
-                }} />
-              ))}
-              {MOSS_BR.map(([dx, dy, ci], i) => (
-                <View key={`br${i}`} style={{
-                  position: 'absolute',
-                  right: dx, bottom: dy,
-                  width: 4, height: 4,
-                  backgroundColor: IVY_C[ci],
-                }} />
-              ))}
-            </View>
+            <View style={styles.mossStripe} pointerEvents="none" />
           )}
 
           {/* Rachadura diagonal (variant 2) */}
@@ -177,13 +152,6 @@ export function TransactionRow({
         <View style={[styles.mortarBar, { borderBottomWidth: 0, borderTopWidth: 1, borderTopColor: mortarBorderColor }]}>
           <View style={[styles.chip, { right: 14, left: undefined }]} />
           <View style={[styles.chip, { right: 42, left: undefined, width: 5 }]} />
-          {/* Chip de musgo inferior (variant 1) */}
-          {variant === 1 && (
-            <>
-              <View style={{ position: 'absolute', right: 24, top: 1, width: 4, height: 3, backgroundColor: P.ivy2 }} />
-              <View style={{ position: 'absolute', right: 28, top: 1, width: 4, height: 3, backgroundColor: P.ivy3 }} />
-            </>
-          )}
         </View>
 
       </View>
@@ -236,6 +204,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 10,
     position: 'relative',
+  },
+
+  // ── Musgo lateral (variant 1) ────────────────────────
+  mossStripe: {
+    position: 'absolute',
+    left: 0, top: 0, bottom: 0,
+    width: 3,
+    backgroundColor: P.ivy2,
+    opacity: 0.85,
   },
 
   // ── Alcova ──────────────────────────────────────────
