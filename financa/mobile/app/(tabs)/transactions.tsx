@@ -68,44 +68,61 @@ const P = {
 //  COMPONENTES PIXEL ART
 // ═══════════════════════════════════════════════════════════
 
-// Larguras de tijolo (padrão repetitivo)
-const BW = [60, 52, 68, 46, 58, 54, 64, 50, 72, 48, 56, 62];
-// Paletas por fileira
+// Larguras de tijolo — mais largas e variadas para pixel art nítido
+const BW = [72, 58, 80, 54, 68, 62, 76, 56, 84, 60, 70, 64];
+// 3 tons bem contrastados + variante quente (tocha)
+const STONE_DARK  = '#1E1E2C';
+const STONE_MID   = '#2A2A3C';
+const STONE_LIGHT = '#363648';
+const STONE_WARM  = '#332818'; // tijolo aquecido pela tocha
+// Chanfro: borda superior mais clara, borda inferior mais escura
+const CHAMFER_TOP = '#424256';
+const CHAMFER_BOT = '#141420';
+
+// Paletas de cor por fileira (3 tons alternados)
 const ROW_PALS: string[][] = [
-  [P.stone0, P.stone1, P.stone0, P.stone1],
-  [P.stone1, P.stone2, P.stone1, P.stone0],
-  [P.stone0, P.stone0, P.stone2, P.stone1],
-  [P.stone2, P.stone1, P.stone0, P.stone2],
+  [STONE_DARK,  STONE_MID,   STONE_DARK,  STONE_LIGHT],
+  [STONE_MID,   STONE_LIGHT, STONE_MID,   STONE_DARK ],
+  [STONE_LIGHT, STONE_DARK,  STONE_MID,   STONE_MID  ],
+  [STONE_DARK,  STONE_DARK,  STONE_LIGHT, STONE_MID  ],
 ];
 
-/** Uma fileira de tijolos de pedra */
+/** Fileira de tijolos pixel art — h=20px com chanfro e argamassa grossa */
 function BrickRow({ row, warmLeft = false, warmRight = false, screenWidth = 420 }: {
   row: number; warmLeft?: boolean; warmRight?: boolean; screenWidth?: number;
 }) {
   const pal = ROW_PALS[row % ROW_PALS.length];
-  const offset = (row % 2 === 0) ? 0 : 36;
-  const bricks: { x: number; w: number; color: string }[] = [];
+  const offset = (row % 2 === 0) ? 0 : 40;
+  const bricks: { x: number; w: number; base: string }[] = [];
   let x = -offset;
   let idx = (row * 3) % BW.length;
-  while (x < screenWidth + 80) {
+  while (x < screenWidth + 100) {
     const w = BW[idx % BW.length];
-    let color = pal[(idx + row) % pal.length];
-    // calor de tocha nos tijolos das laterais
-    if (warmLeft && x < 90) color = P.torchGlow;
-    if (warmRight && x > screenWidth - 90) color = P.torchGlow;
-    bricks.push({ x, w, color });
-    x += w + 2;
+    const base = pal[(idx + row) % pal.length];
+    bricks.push({ x, w, base });
+    x += w + 2; // 2px de argamassa
     idx++;
   }
   return (
-    <View style={{ height: 15, position: 'relative', overflow: 'hidden' }}>
-      {bricks.map((b, i) => (
-        <View key={i} style={{
-          position: 'absolute', left: b.x, top: 0,
-          width: b.w, height: 15,
-          backgroundColor: b.color,
-        }} />
-      ))}
+    // Espaço de 2px de argamassa: marginBottom na linha inteira
+    <View style={{ marginBottom: 2 }}>
+      {bricks.map((b, i) => {
+        let color = b.base;
+        if (warmLeft  && b.x < 100) color = STONE_WARM;
+        if (warmRight && b.x > screenWidth - 100) color = STONE_WARM;
+        return (
+          <View key={i} style={{
+            position: 'absolute', left: b.x, top: 0,
+            width: b.w, height: 20,
+            backgroundColor: color,
+            // Chanfro pixel art: linha 1px clara no topo, escura na base
+            borderTopWidth: 1,    borderTopColor: CHAMFER_TOP,
+            borderBottomWidth: 1, borderBottomColor: CHAMFER_BOT,
+          }} />
+        );
+      })}
+      {/* Altura do container = 20px do tijolo + 1px chanfro top + 1px chanfro bot */}
+      <View style={{ height: 22 }} />
     </View>
   );
 }
@@ -176,110 +193,170 @@ function TorchHalo({ cx, cy }: { cx: number; cy: number }) {
   );
 }
 
-/** Poste e chama da tocha */
+/**
+ * Tocha pixel art pura — sem emoji, sem borderRadius.
+ * Chama construída com Views quadradas empilhadas (escadinha).
+ *
+ *        ██          ← topo amarelo   4×4
+ *       ████         ← meio laranja   6×6
+ *      ██████        ← base vermelha 10×6
+ *      ██████        ← base vermelha 10×6 (2ª camada)
+ *      ██████        ← cabeça tocha  10×6
+ *       ████         ← pescoço        6×4
+ *        ██          ← poste          6×…
+ *        ██
+ *        ██
+ */
 function Torch({ x, y }: { x: number; y: number }) {
   return (
     <>
-      {/* Suporte de parede */}
-      <View style={{
-        position: 'absolute', left: x - 3, top: y + 18,
-        width: 6, height: 10, backgroundColor: P.torchPost,
-        borderWidth: 1, borderColor: '#2A1A08',
+      {/* ── Chama topo — amarelo (4×4) ── */}
+      <View style={{ position: 'absolute', left: x - 2, top: y,     width: 4,  height: 4,  backgroundColor: '#FFEE00' }} />
+      {/* ── Chama meio — laranja (6×6) ── */}
+      <View style={{ position: 'absolute', left: x - 3, top: y + 4, width: 6,  height: 6,  backgroundColor: '#FF8800' }} />
+      {/* ── Chama meio-2 (8×4) ─────────── */}
+      <View style={{ position: 'absolute', left: x - 4, top: y + 8, width: 8,  height: 4,  backgroundColor: '#FF6600' }} />
+      {/* ── Chama base — vermelho (10×6) ── */}
+      <View style={{ position: 'absolute', left: x - 5, top: y +12, width: 10, height: 6,  backgroundColor: '#FF4400' }} />
+      {/* ── Cabeça da tocha (10×6) ──────── */}
+      <View style={{ position: 'absolute', left: x - 5, top: y +18, width: 10, height: 6,  backgroundColor: '#5A3A10' }} />
+      {/* ── Pescoço (6×4) ───────────────── */}
+      <View style={{ position: 'absolute', left: x - 3, top: y +24, width: 6,  height: 4,  backgroundColor: '#4A2E0C' }} />
+      {/* ── Poste / fuste (6×20) ────────── */}
+      <View style={{ position: 'absolute', left: x - 3, top: y +28, width: 6,  height: 20, backgroundColor: '#3C2208',
+        borderLeftWidth: 1, borderLeftColor: '#5A3A18',
+        borderRightWidth: 1, borderRightColor: '#221208',
       }} />
-      {/* Corpo da tocha */}
-      <View style={{
-        position: 'absolute', left: x - 4, top: y + 10,
-        width: 8, height: 10, backgroundColor: P.torchPost,
-        borderWidth: 1, borderColor: '#3A2010',
-      }} />
-      {/* Chama — 3 camadas */}
-      <View style={{
-        position: 'absolute', left: x - 6, top: y,
-        width: 12, height: 14,
-        borderTopLeftRadius: 6, borderTopRightRadius: 6,
-        backgroundColor: P.torchMid, opacity: 0.9,
-      }} />
-      <View style={{
-        position: 'absolute', left: x - 4, top: y + 2,
-        width: 8, height: 10,
-        borderTopLeftRadius: 4, borderTopRightRadius: 4,
-        backgroundColor: P.torch,
-      }} />
-      <View style={{
-        position: 'absolute', left: x - 2, top: y + 4,
-        width: 4, height: 6,
-        borderTopLeftRadius: 2, borderTopRightRadius: 2,
-        backgroundColor: '#FFD040', opacity: 0.9,
-      }} />
+      {/* ── Suporte de parede (10×4) ────── */}
+      <View style={{ position: 'absolute', left: x - 5, top: y +46, width: 10, height: 4,  backgroundColor: '#2A1A08' }} />
     </>
   );
 }
 
-/** Pilar de pedra */
-function Pillar({ x, height, screenH }: { x: number; height: number; screenH: number }) {
+/**
+ * Pilar pixel art — segmentos alternados de pedra + capitel + base.
+ * Usa chanfro lateral para dar volume sem gradiente.
+ */
+function Pillar({ x, totalH, screenH }: { x: number; totalH: number; screenH: number }) {
+  const W = 16;
+  const SEGS = 8; // número de segmentos de pedra no fuste
+  const segH = Math.floor((totalH - 20) / SEGS); // altura de cada segmento
+  const fusteTop = screenH - totalH + 10; // +10 para capitel
+  const segColors = [STONE_MID, STONE_DARK];
+
   return (
     <>
-      {/* Fuste */}
-      <View style={{
-        position: 'absolute', left: x, top: screenH - height,
-        width: 14, height: height,
-        backgroundColor: P.pillar0,
-        borderLeftWidth: 2, borderLeftColor: P.pillar1,
-        borderRightWidth: 1, borderRightColor: P.pillar2,
-      }} />
-      {/* Capitel */}
-      <View style={{
-        position: 'absolute', left: x - 3, top: screenH - height - 6,
-        width: 20, height: 8,
-        backgroundColor: P.pillar1,
-        borderTopWidth: 1, borderTopColor: '#505060',
-      }} />
-      {/* Base */}
-      <View style={{
-        position: 'absolute', left: x - 3, top: screenH - 6,
-        width: 20, height: 6,
-        backgroundColor: P.pillar1,
-        borderBottomWidth: 1, borderBottomColor: '#505060',
-      }} />
+      {/* ── Capitel (degrau triplo de cima para baixo) ── */}
+      <View style={{ position: 'absolute', left: x - 6, top: fusteTop - 10, width: W + 12, height: 4,  backgroundColor: STONE_LIGHT, borderTopWidth: 1, borderTopColor: CHAMFER_TOP }} />
+      <View style={{ position: 'absolute', left: x - 3, top: fusteTop - 6,  width: W + 6,  height: 3,  backgroundColor: STONE_MID }} />
+      <View style={{ position: 'absolute', left: x - 1, top: fusteTop - 3,  width: W + 2,  height: 3,  backgroundColor: STONE_DARK }} />
+
+      {/* ── Fuste segmentado ── */}
+      {Array.from({ length: SEGS }, (_, i) => (
+        <View key={i} style={{
+          position: 'absolute',
+          left: x, top: fusteTop + i * segH,
+          width: W, height: segH - 1, // -1 = junta entre pedras
+          backgroundColor: segColors[i % 2],
+          // Chanfro lateral: highlight esquerda, sombra direita
+          borderLeftWidth: 2,  borderLeftColor:  '#3A3A50',
+          borderRightWidth: 1, borderRightColor: '#141420',
+        }} />
+      ))}
+
+      {/* ── Base (degrau triplo de cima para baixo) ── */}
+      <View style={{ position: 'absolute', left: x - 1, top: screenH - 9,  width: W + 2,  height: 3,  backgroundColor: STONE_DARK }} />
+      <View style={{ position: 'absolute', left: x - 3, top: screenH - 6,  width: W + 6,  height: 3,  backgroundColor: STONE_MID }} />
+      <View style={{ position: 'absolute', left: x - 6, top: screenH - 3,  width: W + 12, height: 3,  backgroundColor: STONE_LIGHT, borderBottomWidth: 1, borderBottomColor: CHAMFER_BOT }} />
     </>
   );
 }
 
-/** Arco gótico central */
-function GothicArch({ cx, bottomY }: { cx: number; bottomY: number }) {
-  const W = 82;   // largura total do arco
-  const H = 90;   // altura do arco
-  const IW = 66;  // largura da abertura interior
-  const IH = 82;  // altura da abertura interior
+/**
+ * Arco gótico pixel art — NENHUM borderRadius.
+ * Construído como linhas [pedra esquerda | void negro | pedra direita].
+ * A largura do void diminui de baixo para cima criando a "escadinha" pixel art.
+ *
+ * Leitura de baixo para cima (renderizado de cima para baixo):
+ *   void=64 (parede reta)  ←── paredes laterais
+ *   void=64
+ *   void=62  ┐
+ *   void=56  │  escadinha
+ *   void=48  │  do arco
+ *   void=38  │
+ *   void=26  │
+ *   void=14  │
+ *   void= 4  ┘ ← topo (quase fechado)
+ */
+function PixelArch({ cx, bottomY }: { cx: number; bottomY: number }) {
+  const OUTER_W = 96; // largura total do arco incluindo as pedras
+  // Cada linha: { voidW, h } — de cima (topo do arco) para baixo (base)
+  const STEPS = [
+    { voidW:  4, h: 6  }, // topo — quase fechado
+    { voidW: 14, h: 6  }, // degrau 1
+    { voidW: 26, h: 6  }, // degrau 2
+    { voidW: 38, h: 6  }, // degrau 3
+    { voidW: 48, h: 6  }, // degrau 4
+    { voidW: 56, h: 6  }, // degrau 5
+    { voidW: 62, h: 6  }, // degrau 6 (quase parede reta)
+    { voidW: 66, h: 14 }, // parede reta superior
+    { voidW: 66, h: 14 }, // parede reta inferior
+    { voidW: 66, h: 999 }, // estende até o fundo do header (calculado abaixo)
+  ];
+
+  // Calcula a altura total dos degraus (exceto o último que preenche o restante)
+  const fixedH = STEPS.slice(0, -1).reduce((s, r) => s + r.h, 0);
+  // Y de onde começa o arco (topo do degrau mais estreito)
+  const archTop = bottomY - fixedH - 60; // 60 = espaço para a parede reta abaixo
+
+  let currentY = archTop;
+
   return (
     <>
-      {/* Moldura de pedra do arco */}
+      {STEPS.map((step, i) => {
+        const stoneW = (OUTER_W - step.voidW) / 2;
+        const isLast = i === STEPS.length - 1;
+        const rowH = isLast ? (bottomY - currentY) : step.h;
+        const y = currentY;
+        currentY += rowH;
+
+        const stoneColor = i % 2 === 0 ? STONE_MID : STONE_DARK;
+
+        return (
+          <React.Fragment key={i}>
+            {/* Pedra esquerda */}
+            <View style={{
+              position: 'absolute',
+              left: cx - OUTER_W / 2, top: y,
+              width: stoneW, height: rowH,
+              backgroundColor: stoneColor,
+              borderRightWidth: 1, borderRightColor: CHAMFER_BOT,
+            }} />
+            {/* Void negro */}
+            <View style={{
+              position: 'absolute',
+              left: cx - step.voidW / 2, top: y,
+              width: step.voidW, height: rowH,
+              backgroundColor: P.archDark,
+            }} />
+            {/* Pedra direita */}
+            <View style={{
+              position: 'absolute',
+              left: cx + step.voidW / 2, top: y,
+              width: stoneW, height: rowH,
+              backgroundColor: stoneColor,
+              borderLeftWidth: 1, borderLeftColor: CHAMFER_TOP,
+            }} />
+          </React.Fragment>
+        );
+      })}
+
+      {/* Destaque no degrau mais estreito (keystone pixel) */}
       <View style={{
         position: 'absolute',
-        left: cx - W / 2, top: bottomY - H,
-        width: W, height: H,
-        borderTopLeftRadius: W / 2,
-        borderTopRightRadius: W / 2,
-        backgroundColor: P.pillar0,
-        borderWidth: 1, borderColor: P.pillar1,
-        borderBottomWidth: 0,
-      }} />
-      {/* Interior negro */}
-      <View style={{
-        position: 'absolute',
-        left: cx - IW / 2, top: bottomY - IH,
-        width: IW, height: IH,
-        borderTopLeftRadius: IW / 2,
-        borderTopRightRadius: IW / 2,
-        backgroundColor: P.archDark,
-        borderBottomWidth: 0,
-      }} />
-      {/* Chão em frente ao arco */}
-      <View style={{
-        position: 'absolute',
-        left: cx - W / 2 - 4, top: bottomY,
-        width: W + 8, height: 2,
-        backgroundColor: P.pillar1,
+        left: cx - 2, top: archTop,
+        width: 4, height: 2,
+        backgroundColor: STONE_LIGHT,
       }} />
     </>
   );
@@ -295,84 +372,76 @@ function DungeonHeader({
   searchOpen: boolean;
   onToggleSearch: () => void;
 }) {
-  const H = 188; // altura do header
-  const NUM_ROWS = 11;
-  const torchLX = 46;
-  const torchRX = screenWidth - 50;
-  const torchY = 60;
-  const archCX = screenWidth / 2;
-  const pillarLX = archCX - 58;
-  const pillarRX = archCX + 44;
+  // Cada fileira de tijolo ocupa 22px (20 tijolo + 2 argamassa)
+  const NUM_ROWS = 9;
+  const H = NUM_ROWS * 22 + 2; // ≈ 200px
+
+  const torchLX = 48;
+  const torchRX = screenWidth - 52;
+  const torchY  = 38; // topo da chama
+
+  const archCX   = screenWidth / 2;
+  // Pilares: justo nas bordas do arco (arco tem OUTER_W=96px)
+  const pillarLX = archCX - 48 - 18; // esquerda do arco - largura pilar
+  const pillarRX = archCX + 48 + 2;  // direita do arco
+  const pillarH  = 80;
 
   return (
     <View style={{ height: H, backgroundColor: P.mortar, overflow: 'hidden', position: 'relative' }}>
 
-      {/* ── Fileiras de tijolo ─────────────────────── */}
+      {/* ── Fileiras de tijolo pixel art ──────────── */}
       {Array.from({ length: NUM_ROWS }, (_, i) => (
         <BrickRow
           key={i}
           row={i}
-          warmLeft={i >= 3 && i <= 7}
-          warmRight={i >= 3 && i <= 7}
+          warmLeft={i >= 1 && i <= 6}
+          warmRight={i >= 1 && i <= 6}
           screenWidth={screenWidth}
         />
       ))}
-      {/* Gap de argamassa no fundo */}
-      <View style={{ height: 2, backgroundColor: P.mortar }} />
 
-      {/* ── Halos das tochas ──────────────────────── */}
-      <TorchHalo cx={torchLX} cy={torchY} />
-      <TorchHalo cx={torchRX} cy={torchY} />
+      {/* ── Halos âmbar das tochas ────────────────── */}
+      <TorchHalo cx={torchLX} cy={torchY + 14} />
+      <TorchHalo cx={torchRX} cy={torchY + 14} />
 
       {/* ── Hera — canto superior esquerdo ─────────── */}
       <IvyCluster left={0}   top={0}  pattern={0} />
-      <IvyCluster left={24}  top={4}  pattern={3} />
-      <IvyCluster left={4}   top={28} pattern={1} />
+      <IvyCluster left={24}  top={8}  pattern={3} />
+      <IvyCluster left={0}   top={36} pattern={1} />
+      <IvyCluster left={16}  top={52} pattern={3} />
 
       {/* ── Hera — canto superior direito ─────────── */}
-      <IvyCluster left={screenWidth - 96} top={0}  pattern={2} />
-      <IvyCluster left={screenWidth - 68} top={4}  pattern={3} />
-      <IvyCluster left={screenWidth - 36} top={8}  pattern={1} />
+      <IvyCluster left={screenWidth - 100} top={0}  pattern={2} />
+      <IvyCluster left={screenWidth - 72}  top={6}  pattern={3} />
+      <IvyCluster left={screenWidth - 40}  top={12} pattern={1} />
+      <IvyCluster left={screenWidth - 28}  top={50} pattern={3} />
 
-      {/* ── Hera — lateral esquerda baixo ──────────── */}
-      <IvyCluster left={0}  top={60} pattern={1} />
-      <IvyCluster left={20} top={80} pattern={3} />
+      {/* ── Arco gótico pixel art ─────────────────── */}
+      <PixelArch cx={archCX} bottomY={H} />
 
-      {/* ── Hera — lateral direita baixo ───────────── */}
-      <IvyCluster left={screenWidth - 44} top={65} pattern={3} />
-      <IvyCluster left={screenWidth - 24} top={88} pattern={1} />
+      {/* ── Pilares pixel art ─────────────────────── */}
+      <Pillar x={pillarLX} totalH={pillarH} screenH={H} />
+      <Pillar x={pillarRX} totalH={pillarH} screenH={H} />
 
-      {/* ── Pilares ───────────────────────────────── */}
-      <Pillar x={pillarLX}  height={72} screenH={H} />
-      <Pillar x={pillarRX}  height={72} screenH={H} />
-
-      {/* ── Arco ──────────────────────────────────── */}
-      <GothicArch cx={archCX} bottomY={H} />
-
-      {/* ── Tochas ────────────────────────────────── */}
+      {/* ── Tochas pixel art ──────────────────────── */}
       <Torch x={torchLX} y={torchY} />
       <Torch x={torchRX} y={torchY} />
 
-      {/* ── Título entalhado ──────────────────────── */}
+      {/* ── Título entalhado na pedra ─────────────── */}
       <View style={{
-        position: 'absolute',
-        left: 0, right: 0, top: 18,
+        position: 'absolute', left: 0, right: 0, top: 14,
         alignItems: 'center',
       }}>
         <Text style={{
-          fontFamily: 'VT323',
-          fontSize: 11,
-          letterSpacing: 4,
+          fontFamily: 'VT323', fontSize: 11, letterSpacing: 4,
           color: P.dim,
         }}>✦ REGISTRO DOS AVENTUREIROS ✦</Text>
         <Text style={{
-          fontFamily: 'VT323',
-          fontSize: 34,
-          letterSpacing: 6,
+          fontFamily: 'VT323', fontSize: 36, letterSpacing: 6,
           color: P.cream,
           textShadowColor: P.torch,
           textShadowOffset: { width: 0, height: 0 },
-          textShadowRadius: 8,
+          textShadowRadius: 10,
         }}>A MASMORRA</Text>
       </View>
 
@@ -609,10 +678,19 @@ export default function TransactionsScreen() {
         )}
         ListEmptyComponent={
           <View style={styles.empty}>
-            {/* Mini arco pixel art */}
-            <View style={styles.emptyArch}>
-              <View style={styles.emptyArchInner} />
-            </View>
+            {/* Mini arco pixel art — escadinha sem borderRadius */}
+            {[4,12,22,32,40,46,48].map((voidW, i) => {
+              const outerW = 56;
+              const stoneW = (outerW - voidW) / 2;
+              const h = i === 6 ? 20 : 6;
+              return (
+                <View key={i} style={{ flexDirection: 'row', height: h, marginBottom: 0 }}>
+                  <View style={{ width: stoneW, height: h, backgroundColor: STONE_MID }} />
+                  <View style={{ width: voidW,  height: h, backgroundColor: P.archDark }} />
+                  <View style={{ width: stoneW, height: h, backgroundColor: STONE_MID }} />
+                </View>
+              );
+            })}
             <Text style={styles.emptyTitle}>
               {query ? 'SEM REGISTROS' : 'MASMORRA VAZIA'}
             </Text>
@@ -732,20 +810,6 @@ const styles = StyleSheet.create({
 
   // ── Empty state ───────────────────────────────────────
   empty: { alignItems: 'center', paddingTop: 50, gap: 8 },
-  emptyArch: {
-    width: 60, height: 68,
-    borderTopLeftRadius: 30, borderTopRightRadius: 30,
-    backgroundColor: P.stone0,
-    borderWidth: 1, borderColor: P.stone2, borderBottomWidth: 0,
-    alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  emptyArchInner: {
-    width: 44, height: 56,
-    borderTopLeftRadius: 22, borderTopRightRadius: 22,
-    backgroundColor: P.archDark,
-    marginTop: 12,
-  },
   emptyTitle: {
     fontFamily: 'VT323', fontSize: 18, letterSpacing: 3,
     color: P.dim,
