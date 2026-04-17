@@ -11,7 +11,7 @@ type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {
   const icons: Record<string, MCIName> = {
     index:        'shield-home-outline',    // Guilda / Dashboard
-    transactions: 'book-open-page-variant-outline', // Crônicas
+    transactions: 'skull-crossbones-outline',        // Masmorra
     goals:        'flag-checkered',         // Missões
     more:         'crystal-ball',           // Grimório / Configurações
   };
@@ -60,7 +60,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="transactions"
         options={{
-          title: 'Crônicas',
+          title: 'Masmorra',
           tabBarIcon: ({ focused }) => <TabBarIcon name="transactions" focused={focused} />,
         }}
       />

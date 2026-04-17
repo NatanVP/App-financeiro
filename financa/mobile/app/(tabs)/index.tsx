@@ -1,11 +1,10 @@
 /**
- * Dashboard — Bolsa de Ouro
- * Shows: hero card (bolsa de ouro), cashflow chart, ordens de compra, reserva real, dívidas ao ferreiro.
+ * Dashboard — A Guilda (Taverna)
+ * Shows: hero card (bolsa de ouro), cashflow chart, cofres, fatura, fluxo de magia, ordens de compra, dívidas.
  */
 import React, { useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 import { Colors, Spacing } from '@/constants/theme';
@@ -22,6 +21,23 @@ import { BankIcon } from '@/components/ui/BankIcon';
 import { CreditInvoiceWidget } from '@/components/ui/CreditInvoiceWidget';
 import { useCreditStore } from '@/store/creditStore';
 import { useAccountStore } from '@/store/accountStore';
+
+// ── Tavern palette ──────────────────────────────────────────
+const T = {
+  bg:        '#130804',   // dark charred wood
+  plank:     '#1E0E07',   // wood plank
+  plankMid:  '#2C1810',   // mid plank
+  border:    '#5C3218',   // carved wood edge
+  borderGold:'#6B4A1A',   // gold-stained wood
+  amber:     '#D4860A',   // torch amber
+  gold:      '#E8B84B',   // coin gold
+  orange:    '#C45E0A',   // burnt orange
+  cream:     '#F0DEB0',   // aged parchment
+  creamDim:  '#9A7850',   // dimmed parchment
+  green:     '#5AAA3A',   // receipt green
+  red:       '#CC3322',   // blood red
+  separator: '#3A1E0C',   // wood grain line
+};
 
 const MONTH_NAMES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
 const ACCOUNT_ORDER = ['nubank', 'itau', 'inter'] as const;
@@ -48,7 +64,6 @@ export default function DashboardScreen() {
 
   const { expenseCents } = getMonthlyTotals(year, month);
 
-  // Quais pagamentos já foram recebidos
   const { received5th, received20th, receivedLast } = getReceivedPayments(year, month, today);
   const receivedSoFarCents =
     (received5th ? payment5thCents : 0) +
@@ -56,9 +71,7 @@ export default function DashboardScreen() {
     (receivedLast ? paymentLastCents : 0);
   const pendingCents = totalMonthlyCents() - receivedSoFarCents;
 
-  // Grande: projeção do mês inteiro (total salário - gastos)
   const projectionCents = totalMonthlyCents() - expenseCents;
-  // Pequeno: saldo atual (recebido - gastos)
   const currentBalanceCents = receivedSoFarCents - expenseCents;
   const activeDebts = getActiveDebts();
   const totalDebtBalance = getTotalBalance();
@@ -98,7 +111,7 @@ export default function DashboardScreen() {
     const { incomeCents: inc, expenseCents: exp } = getMonthlyTotals(year, i + 1);
     return {
       label,
-      value: inc - exp, // saldo do mês (pode ser negativo)
+      value: inc - exp,
       isHighlighted: i === month - 1,
     };
   });
@@ -125,62 +138,91 @@ export default function DashboardScreen() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor={Colors.primary}
+          tintColor={T.amber}
         />
       }
     >
-      {/* Header — O Reino */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <MaterialCommunityIcons name="shield-crown-outline" size={24} color={Colors.primary} />
-          <Text style={styles.appName}>Guild Ledger</Text>
+      {/* ── Placa da Taverna ─────────────────────────────── */}
+      <View style={styles.tavernSign}>
+        {/* Correntes da placa */}
+        <View style={styles.signChain}>
+          <View style={styles.chainLink} />
+          <View style={styles.chainLink} />
+          <View style={styles.chainLink} />
         </View>
-        <View style={styles.headerRight}>
-          <Text style={styles.monthLabel}>
-            {MONTH_NAMES[month - 1]}, {year}
-          </Text>
-          <TouchableOpacity onPress={() => router.push('/more')}>
-            <MaterialCommunityIcons name="cog-outline" size={22} color={Colors.onSurfaceVariant} />
-          </TouchableOpacity>
+
+        <View style={styles.signPlank}>
+          {/* Entalhe superior */}
+          <View style={styles.plankEdgeTop} />
+
+          <View style={styles.signInner}>
+            <Text style={styles.torchLeft}>🔥</Text>
+            <View style={styles.signTextBlock}>
+              <Text style={styles.signKicker}>
+                {MONTH_NAMES[month - 1]}  {year}
+              </Text>
+              <Text style={styles.signTitle}>A  GUILDA</Text>
+            </View>
+            <Text style={styles.torchRight}>🔥</Text>
+          </View>
+
+          {/* Entalhe inferior */}
+          <View style={styles.plankEdgeBottom} />
         </View>
+
+        <View style={styles.signChain}>
+          <View style={styles.chainLink} />
+          <View style={styles.chainLink} />
+          <View style={styles.chainLink} />
+        </View>
+
+        {/* Botão grimório */}
+        <TouchableOpacity style={styles.grimoireBtn} onPress={() => router.push('/more')}>
+          <Text style={styles.grimoireBtnText}>📖</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Hero Card — Bolsa de Ouro */}
+      {/* ── Separador madeira ────────────────────────────── */}
+      <View style={styles.woodSep}>
+        <View style={styles.woodSepLine} />
+        <Text style={styles.woodSepGlyph}>✦</Text>
+        <View style={styles.woodSepLine} />
+      </View>
+
+      {/* ── Hero Card — Bolsa de Ouro ─────────────────────── */}
       <ScrollCard icon="coin_bag" title="BOLSA DE OURO" hero>
-        {/* Grande: projeção do mês */}
-        <Text style={[styles.heroAmount, { color: projectionCents >= 0 ? Colors.primary : Colors.tertiary }]}>
+        <Text style={[styles.heroAmount, { color: projectionCents >= 0 ? T.gold : T.red }]}>
           {formatBRL(money(projectionCents))}
         </Text>
-        {/* Pequeno: saldo atual na conta */}
         <View style={styles.currentBalanceRow}>
           <Text style={styles.currentBalanceLabel}>NA CONTA</Text>
-          <Text style={[styles.currentBalanceValue, { color: currentBalanceCents >= 0 ? Colors.secondary : Colors.tertiary }]}>
+          <Text style={[styles.currentBalanceValue, { color: currentBalanceCents >= 0 ? T.green : T.red }]}>
             {formatBRL(money(currentBalanceCents))}
           </Text>
         </View>
         <View style={styles.heroStats}>
           <View>
             <Text style={styles.heroStatLabel}>Recebido</Text>
-            <Text style={[styles.heroStatValue, { color: Colors.secondary }]}>
+            <Text style={[styles.heroStatValue, { color: T.green }]}>
               +{formatBRL(money(receivedSoFarCents))}
             </Text>
           </View>
           <View>
             <Text style={styles.heroStatLabel}>A Receber</Text>
-            <Text style={[styles.heroStatValue, { color: Colors.primary }]}>
+            <Text style={[styles.heroStatValue, { color: T.amber }]}>
               +{formatBRL(money(pendingCents))}
             </Text>
           </View>
           <View>
             <Text style={styles.heroStatLabel}>Gastos</Text>
-            <Text style={[styles.heroStatValue, { color: Colors.tertiary }]}>
+            <Text style={[styles.heroStatValue, { color: T.red }]}>
               {formatBRL(expenseCents)}
             </Text>
           </View>
         </View>
       </ScrollCard>
 
-      {/* Cofres do Reino */}
+      {/* ── Cofres do Reino ──────────────────────────────── */}
       <ScrollCard icon="gem" title="COFRES DO REINO">
         {realmAccounts.length === 0 ? (
           <Text style={styles.emptyHint}>Nenhum cofre ativo encontrado.</Text>
@@ -201,14 +243,14 @@ export default function DashboardScreen() {
                       styles.accountBalance,
                       {
                         color:
-                          account.currentBalanceCents >= 0 ? Colors.secondaryFixed : Colors.tertiary,
+                          account.currentBalanceCents >= 0 ? T.green : T.red,
                       },
                     ]}
                   >
                     {formatBRL(account.currentBalanceCents)}
                   </Text>
                 </View>
-                {index < realmAccounts.length - 1 && <View style={styles.separator} />}
+                {index < realmAccounts.length - 1 && <View style={styles.tavernSep} />}
               </React.Fragment>
             ))}
           </View>
@@ -223,12 +265,12 @@ export default function DashboardScreen() {
         />
       )}
 
-      {/* Fluxo de Magia */}
+      {/* ── Fluxo de Magia ───────────────────────────────── */}
       <ScrollCard icon="potion_blue" title="FLUXO DE MAGIA">
         <BarChart data={cashflowBars} height={120} />
       </ScrollCard>
 
-      {/* Ordens de Compra (top categorias) */}
+      {/* ── Ordens de Compra ─────────────────────────────── */}
       <ScrollCard icon="chest" title="ORDENS DE COMPRA">
         {topCategories.length === 0 ? (
           <Text style={styles.emptyHint}>Nenhuma ordem registrada este mês.</Text>
@@ -240,60 +282,128 @@ export default function DashboardScreen() {
                   <Text style={styles.catName}>{cat.name}</Text>
                   <Text style={styles.catAmount}>{formatBRL(cat.amountCents)}</Text>
                 </View>
-                <ProgressBar progress={cat.amountCents / maxCatAmount} height={4} color={Colors.primary} />
+                <ProgressBar progress={cat.amountCents / maxCatAmount} height={4} color={T.amber} />
               </View>
             ))}
           </View>
         )}
       </ScrollCard>
 
-      {/* Dívidas ao Ferreiro */}
+      {/* ── Dívidas ao Ferreiro ──────────────────────────── */}
       <TouchableOpacity onPress={() => router.push('/debts')}>
         <ScrollCard icon="trident" title="DÍVIDAS AO FERREIRO">
           <View style={styles.debtRow}>
             <Text style={styles.debtLabel}>Títulos de guerra</Text>
             <Text style={styles.debtValue}>{activeDebts.length} contratos</Text>
           </View>
-          <View style={styles.separator} />
+          <View style={styles.tavernSep} />
           <View style={styles.debtRow}>
             <Text style={styles.debtLabel}>Saldo total</Text>
-            <Text style={[styles.debtValue, { color: Colors.tertiary }]}>
+            <Text style={[styles.debtValue, { color: T.red }]}>
               {formatBRL(totalDebtBalance)}
             </Text>
           </View>
           <Text style={styles.tapHint}>Toque para quitar débitos →</Text>
         </ScrollCard>
       </TouchableOpacity>
+
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surfaceLowest },
-  content: { paddingHorizontal: Spacing.lg, paddingBottom: 100, gap: Spacing.md },
+  container: { flex: 1, backgroundColor: T.bg },
+  content:   { paddingHorizontal: Spacing.lg, paddingBottom: 100, gap: Spacing.md },
 
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  // ── Placa da Taverna ───────────────────────────────────
+  tavernSign: {
     alignItems: 'center',
-    height: 56,
+    marginTop: 8,
+    marginBottom: 4,
+    position: 'relative',
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  appName: {
-    fontFamily: 'VT323',
-    fontSize: 22,
-    color: Colors.primary,
-    letterSpacing: 1,
+  signChain: {
+    flexDirection: 'row',
+    gap: 3,
+    alignSelf: 'center',
   },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  monthLabel: {
+  chainLink: {
+    width: 6,
+    height: 4,
+    borderWidth: 1,
+    borderColor: T.borderGold,
+    backgroundColor: T.plankMid,
+  },
+  signPlank: {
+    backgroundColor: T.plankMid,
+    borderWidth: 2,
+    borderColor: T.border,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  plankEdgeTop: {
+    height: 4,
+    backgroundColor: T.border,
+    borderBottomWidth: 1,
+    borderBottomColor: T.borderGold,
+  },
+  plankEdgeBottom: {
+    height: 4,
+    backgroundColor: T.border,
+    borderTopWidth: 1,
+    borderTopColor: T.borderGold,
+  },
+  signInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 10,
+  },
+  torchLeft:  { fontSize: 22 },
+  torchRight: { fontSize: 22 },
+  signTextBlock: { alignItems: 'center', flex: 1 },
+  signKicker: {
     fontFamily: 'VT323',
-    fontSize: 13,
+    fontSize: 12,
+    letterSpacing: 3,
+    color: T.creamDim,
     textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    color: Colors.onSurfaceVariant,
+  },
+  signTitle: {
+    fontFamily: 'VT323',
+    fontSize: 34,
+    letterSpacing: 6,
+    color: T.gold,
+    textTransform: 'uppercase',
+  },
+  grimoireBtn: {
+    position: 'absolute',
+    right: 0,
+    bottom: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: T.plankMid,
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  grimoireBtnText: { fontSize: 16 },
+
+  // ── Separador madeira ──────────────────────────────────
+  woodSep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginVertical: -2,
+  },
+  woodSepLine: { flex: 1, height: 1, backgroundColor: T.separator },
+  woodSepGlyph: {
+    fontFamily: 'VT323',
+    fontSize: 12,
+    color: T.amber,
   },
 
+  // ── Hero ───────────────────────────────────────────────
   heroAmount: {
     fontFamily: 'VT323',
     fontSize: 44,
@@ -312,52 +422,52 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
-    color: Colors.onSurfaceVariant,
+    color: T.creamDim,
   },
   currentBalanceValue: {
     fontFamily: 'VT323',
     fontSize: 22,
     fontVariant: ['tabular-nums'],
   },
-
   heroStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: Spacing.xl,
     paddingTop: Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: `${Colors.outline}40`,
+    borderTopColor: T.separator,
   },
   heroStatLabel: {
     fontFamily: 'VT323',
     fontSize: 11,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
-    color: Colors.onSurfaceVariant,
+    color: T.creamDim,
   },
   heroStatValue: {
     fontFamily: 'VT323',
     fontSize: 16,
     fontVariant: ['tabular-nums'],
-    color: Colors.onSurface,
+    color: T.cream,
     marginTop: 2,
   },
 
-
-  bigPct: {
-    fontFamily: 'VT323',
-    fontSize: 28,
-    fontVariant: ['tabular-nums'],
-    color: Colors.primary,
-  },
-  subLabel: {
-    fontFamily: 'VT323',
-    fontSize: 12,
-    color: Colors.outline,
-    fontVariant: ['tabular-nums'],
+  // ── Separador de taverna ───────────────────────────────
+  tavernSep: {
+    height: 1,
+    backgroundColor: T.separator,
+    marginVertical: 2,
   },
 
-  emptyHint: { fontFamily: 'VT323', fontSize: 13, color: Colors.onSurfaceVariant, marginTop: 4 },
+  // ── Empty hint ─────────────────────────────────────────
+  emptyHint: {
+    fontFamily: 'VT323',
+    fontSize: 13,
+    color: T.creamDim,
+    marginTop: 4,
+  },
+
+  // ── Contas ─────────────────────────────────────────────
   accountsList: { gap: 0 },
   accountRow: {
     flexDirection: 'row',
@@ -376,14 +486,14 @@ const styles = StyleSheet.create({
   accountName: {
     fontFamily: 'VT323',
     fontSize: 16,
-    color: Colors.onSurface,
+    color: T.cream,
   },
   accountMeta: {
     fontFamily: 'VT323',
     fontSize: 11,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
-    color: Colors.onSurfaceVariant,
+    color: T.creamDim,
   },
   accountBalance: {
     fontFamily: 'VT323',
@@ -391,13 +501,20 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     textAlign: 'right',
   },
-  catRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  catName: { fontFamily: 'VT323', fontSize: 14, color: Colors.onSurface },
-  catAmount: { fontFamily: 'VT323', fontSize: 14, fontVariant: ['tabular-nums'], color: Colors.onSurface },
 
-  debtRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm },
-  debtLabel: { fontFamily: 'VT323', fontSize: 13, color: Colors.onSurfaceVariant },
-  debtValue: { fontFamily: 'VT323', fontSize: 16, fontVariant: ['tabular-nums'], color: Colors.onSurface },
-  separator: { height: 1, backgroundColor: Colors.outlineVariant },
-  tapHint: { fontFamily: 'VT323', fontSize: 11, color: Colors.outline, textAlign: 'right', marginTop: 4 },
+  // ── Categorias ─────────────────────────────────────────
+  catRow:   { flexDirection: 'row', justifyContent: 'space-between' },
+  catName:  { fontFamily: 'VT323', fontSize: 14, color: T.cream },
+  catAmount: { fontFamily: 'VT323', fontSize: 14, fontVariant: ['tabular-nums'], color: T.cream },
+
+  // ── Dívidas ────────────────────────────────────────────
+  debtRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+  },
+  debtLabel: { fontFamily: 'VT323', fontSize: 13, color: T.creamDim },
+  debtValue: { fontFamily: 'VT323', fontSize: 16, fontVariant: ['tabular-nums'], color: T.cream },
+  tapHint:  { fontFamily: 'VT323', fontSize: 11, color: T.amber, textAlign: 'right', marginTop: 4 },
 });
