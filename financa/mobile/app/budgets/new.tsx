@@ -14,13 +14,14 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+
 
 import { BorderRadius, Colors, Spacing, Typography } from '@/constants/theme';
 import { money } from '@/lib/money';
 import { NumPad } from '@/components/ui/NumPad';
 import { useBudgetStore } from '@/store/budgetStore';
-import { CATEGORIES } from '@/constants/categories';
+import { useCategoryStore } from '@/store/categoryStore';
+import { RPGIcon } from '@/components/ui/RPGIcon';
 
 export default function NewBudgetScreen() {
   const insets = useSafeAreaInsets();
@@ -28,6 +29,7 @@ export default function NewBudgetScreen() {
   const yearMonth = params.year_month ?? new Date().toISOString().slice(0, 7);
 
   const { upsertBudget } = useBudgetStore();
+  const { getByType } = useCategoryStore();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [amountInput, setAmountInput] = useState('0');
 
@@ -114,7 +116,7 @@ export default function NewBudgetScreen() {
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>CATEGORIA</Text>
           <View style={styles.categoryGrid}>
-            {CATEGORIES.filter((c) => c.id !== '7').map((cat) => (
+            {getByType('expense').filter((c) => c.id !== 'income').map((cat) => (
               <TouchableOpacity
                 key={cat.id}
                 style={[
@@ -123,15 +125,7 @@ export default function NewBudgetScreen() {
                 ]}
                 onPress={() => setSelectedCategory(cat.id)}
               >
-                <MaterialCommunityIcons
-                  name={cat.icon}
-                  size={20}
-                  color={
-                    selectedCategory === cat.id
-                      ? Colors.primary
-                      : Colors.onSurfaceVariant
-                  }
-                />
+                <RPGIcon name={cat.icon} size={20} chip={false} />
                 <Text
                   style={[
                     styles.catName,

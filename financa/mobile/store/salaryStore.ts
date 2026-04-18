@@ -7,6 +7,7 @@ export interface SalaryConfig {
   payment20thCents: number;
   /** Pagamento no último dia do mês (em centavos) */
   paymentLastCents: number;
+  salaryAccountId: string;
 }
 
 interface SalaryState extends SalaryConfig {
@@ -18,6 +19,7 @@ export const useSalaryStore = create<SalaryState>((set, get) => ({
   payment5thCents: 0,
   payment20thCents: 0,
   paymentLastCents: 0,
+  salaryAccountId: 'nubank',
 
   setSalaryConfig: (config) => set((state) => ({ ...state, ...config })),
 

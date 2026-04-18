@@ -2,7 +2,7 @@
  * New Transaction screen — bottom sheet modal.
  * Type toggle (Despesa/Receita/Transf.), category scroll, account + date fields, custom NumPad.
  */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -16,18 +16,26 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { money, Money } from '@/lib/money';
 import { NumPad } from '@/components/ui/NumPad';
 import { DatePickerModal } from '@/components/ui/DatePickerModal';
 import { BankIcon } from '@/components/ui/BankIcon';
-import { CATEGORIES } from '@/constants/categories';
+import { RPGIcon } from '@/components/ui/RPGIcon';
 import { useTransactionStore } from '@/store/transactionStore';
 import { useAccountStore } from '@/store/accountStore';
+import { useCategoryStore } from '@/store/categoryStore';
 
-type TxType = 'expense' | 'income' | 'transfer';
+import { useCreditStore } from '@/store/creditStore';
+import { getInvoiceMonthKey, formatInvoiceLabel } from '@/lib/credit';
+
+type TxType = 'expense' | 'income' | 'transfer' | 'credit';
+
+function getFallbackTransferAccountId(accountIds: string[], selectedAccountId: string): string | null {
+  return accountIds.find((id) => id !== selectedAccountId) ?? null;
+}
 
 export default function NewTransactionScreen() {
   const insets = useSafeAreaInsets();
@@ -38,6 +46,7 @@ export default function NewTransactionScreen() {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showAccountPicker, setShowAccountPicker] = useState(false);
+  const [showTransferAccountPicker, setShowTransferAccountPicker] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const formatDateLabel = (iso: string): string => {
@@ -52,8 +61,22 @@ export default function NewTransactionScreen() {
 
   const { addTransaction } = useTransactionStore();
   const { getActiveAccounts } = useAccountStore();
+  const { closingDay, enabled: creditEnabled } = useCreditStore();
+  const { getByType } = useCategoryStore();
   const accounts = getActiveAccounts();
+  const accountIds = accounts.map((account) => account.id);
   const [selectedAccountId, setSelectedAccountId] = useState(() => accounts[0]?.id ?? 'nubank');
+  const [selectedTransferAccountId, setSelectedTransferAccountId] = useState<string | null>(
+    () => getFallbackTransferAccountId(accountIds, accounts[0]?.id ?? 'nubank'),
+  );
+
+  useEffect(() => {
+    if (!selectedAccountId) return;
+
+    if (!selectedTransferAccountId || selectedTransferAccountId === selectedAccountId) {
+      setSelectedTransferAccountId(getFallbackTransferAccountId(accountIds, selectedAccountId));
+    }
+  }, [accountIds, selectedAccountId, selectedTransferAccountId]);
 
   const handleNumPad = (key: string) => {
     if (key === '⌫') {
@@ -93,19 +116,38 @@ export default function NewTransactionScreen() {
     }
 
     const accountId = selectedAccountId;
+    if (txType === 'transfer') {
+      if (accounts.length < 2) {
+        Alert.alert('Transferência indisponível', 'Cadastre ao menos dois bancos para transferir entre eles.');
+        return;
+      }
+      if (!selectedTransferAccountId) {
+        Alert.alert('Destino ausente', 'Escolha para qual banco a transferência vai.');
+        return;
+      }
+      if (selectedTransferAccountId === accountId) {
+        Alert.alert('Contas iguais', 'Selecione bancos diferentes para a transferência.');
+        return;
+      }
+    }
+
     const now = new Date().toISOString();
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const transferLabel =
+      txType === 'transfer'
+        ? `${selectedAccount?.name ?? 'Conta'} → ${selectedTransferAccount?.name ?? 'Conta'}`
+        : null;
 
     const tx = {
       id,
       account_id: accountId,
-      category_id: selectedCategory,
+      category_id: txType === 'transfer' ? null : selectedCategory,
       amount_cents: cents,
       type: txType,
-      description: description.trim(),
+      description: description.trim() || transferLabel || '',
       date: selectedDate,
       notes: null,
-      transfer_to_account_id: null,
+      transfer_to_account_id: txType === 'transfer' ? selectedTransferAccountId : null,
       is_reconciled: false,
       device_id: process.env.EXPO_PUBLIC_DEVICE_ID ?? null,
       created_at: now,
@@ -132,9 +174,18 @@ export default function NewTransactionScreen() {
     expense: Colors.tertiary,
     income: Colors.secondary,
     transfer: Colors.primary,
+    credit: '#64B5F6',
   };
 
+  // For credit, show which invoice month this purchase will go to
+  const creditInvoiceLabel =
+    txType === 'credit'
+      ? formatInvoiceLabel(getInvoiceMonthKey(selectedDate, closingDay))
+      : null;
+
   const displayAmount = amountInput === '0' ? '0,00' : amountInput;
+  const selectedAccount = accounts.find((account) => account.id === selectedAccountId);
+  const selectedTransferAccount = accounts.find((account) => account.id === selectedTransferAccountId);
 
   return (
     <View style={[styles.backdrop]}>
@@ -155,18 +206,27 @@ export default function NewTransactionScreen() {
 
         {/* Type toggle */}
         <View style={styles.typeToggle}>
-          {(['expense', 'income', 'transfer'] as TxType[]).map((t) => (
+          {(['expense', 'income', 'transfer', ...(creditEnabled ? ['credit' as TxType] : [])] as TxType[]).map((t) => (
             <TouchableOpacity
               key={t}
               style={[styles.typeBtn, txType === t && styles.typeBtnActive]}
               onPress={() => setTxType(t)}
             >
               <Text style={[styles.typeBtnText, txType === t && styles.typeBtnTextActive]}>
-                {t === 'expense' ? 'Despesa' : t === 'income' ? 'Receita' : 'Transf.'}
+                {t === 'expense' ? 'Despesa' : t === 'income' ? 'Receita' : t === 'transfer' ? 'Transf.' : 'Crédito'}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Credit invoice hint */}
+        {creditInvoiceLabel && (
+          <View style={styles.creditHint}>
+            <Text style={styles.creditHintText}>
+              FATURA {creditInvoiceLabel}
+            </Text>
+          </View>
+        )}
 
         {/* Amount display */}
         <View style={styles.amountSection}>
@@ -178,47 +238,96 @@ export default function NewTransactionScreen() {
         </View>
 
         <ScrollView style={styles.formScroll} contentContainerStyle={{ gap: Spacing.xl }}>
-          {/* Categories */}
-          <View>
-            <Text style={styles.fieldLabel}>CATEGORIA</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll}>
-              <View style={styles.catRow}>
-                {CATEGORIES
-                  .filter((c) => txType === 'income' ? c.id === '7' : c.id !== '7')
-                  .map((cat) => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[
-                      styles.catChip,
-                      selectedCategory === cat.id && styles.catChipActive,
-                    ]}
-                    onPress={() => setSelectedCategory(cat.id)}
-                  >
-                    <MaterialCommunityIcons
-                      name={cat.icon}
-                      size={20}
-                      color={selectedCategory === cat.id ? Colors.primary : Colors.onSurfaceVariant}
-                    />
-                    <Text style={[
-                      styles.catName,
-                      selectedCategory === cat.id && { color: Colors.primary },
-                    ]}>
-                      {cat.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
+          {txType !== 'transfer' ? (
+            <View>
+              <Text style={styles.fieldLabel}>CATEGORIA</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll}>
+                <View style={styles.catRow}>
+                  {getByType(txType === 'income' ? 'income' : 'expense')
+                    .filter((c) => !(txType === 'credit' && c.id === 'income'))
+                    .map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[
+                        styles.catChip,
+                        selectedCategory === cat.id && styles.catChipActive,
+                      ]}
+                      onPress={() => setSelectedCategory(cat.id)}
+                    >
+                      <RPGIcon
+                        name={cat.icon}
+                        size={20}
+                        chip={false}
+                      />
+                      <Text style={[
+                        styles.catName,
+                        selectedCategory === cat.id && { color: Colors.primary },
+                      ]}>
+                        {cat.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          ) : (
+            <View style={styles.transferHintBox}>
+              <Text style={styles.transferHintText}>TRANSFERÊNCIA ENTRE BANCOS NÃO USA CATEGORIA.</Text>
+            </View>
+          )}
 
           {/* Account + Date row */}
-          <View style={styles.metaRow}>
+          {txType === 'transfer' && (
+            <>
+              <View style={styles.transferRow}>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={styles.fieldLabel}>DE</Text>
+                  <TouchableOpacity style={styles.selectBtn} onPress={() => setShowAccountPicker(true)}>
+                    <BankIcon bank={selectedAccountId} size={20} />
+                    <Text style={styles.selectText}>
+                      {selectedAccount?.name ?? 'Conta'}
+                    </Text>
+                    <Text style={{ color: Colors.onSurfaceVariant, opacity: 0.4 }}>▼</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.transferArrowWrap}>
+                  <Ionicons name="swap-horizontal" size={18} color={Colors.primary} />
+                </View>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={styles.fieldLabel}>PARA</Text>
+                  <TouchableOpacity style={styles.selectBtn} onPress={() => setShowTransferAccountPicker(true)}>
+                    {selectedTransferAccount ? (
+                      <BankIcon bank={selectedTransferAccount.id} size={20} />
+                    ) : (
+                      <Ionicons name="business-outline" size={16} color={Colors.primary} />
+                    )}
+                    <Text style={styles.selectText}>
+                      {selectedTransferAccount?.name ?? 'Escolher banco'}
+                    </Text>
+                    <Text style={{ color: Colors.onSurfaceVariant, opacity: 0.4 }}>▼</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={{ gap: 4 }}>
+                <Text style={styles.fieldLabel}>DATA</Text>
+                <TouchableOpacity style={styles.selectBtn} onPress={() => setShowDatePicker(true)}>
+                  <Ionicons name="calendar-outline" size={14} color={Colors.primary} />
+                  <Text style={styles.selectText}>{formatDateLabel(selectedDate)}</Text>
+                  <Text style={{ color: Colors.onSurfaceVariant, opacity: 0.4 }}>▼</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
+          {txType !== 'transfer' && (
+            <View style={styles.metaRow}>
             <View style={{ flex: 1, gap: 4 }}>
               <Text style={styles.fieldLabel}>CONTA</Text>
               <TouchableOpacity style={styles.selectBtn} onPress={() => setShowAccountPicker(true)}>
                 <BankIcon bank={selectedAccountId} size={20} />
                 <Text style={styles.selectText}>
-                  {accounts.find(a => a.id === selectedAccountId)?.name ?? 'Conta'}
+                  {selectedAccount?.name ?? 'Conta'}
                 </Text>
                 <Text style={{ color: Colors.onSurfaceVariant, opacity: 0.4 }}>▼</Text>
               </TouchableOpacity>
@@ -231,7 +340,8 @@ export default function NewTransactionScreen() {
                 <Text style={{ color: Colors.onSurfaceVariant, opacity: 0.4 }}>▼</Text>
               </TouchableOpacity>
             </View>
-          </View>
+            </View>
+          )}
 
           {/* Descrição */}
           <View>
@@ -286,6 +396,55 @@ export default function NewTransactionScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <Modal
+        visible={showTransferAccountPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTransferAccountPicker(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setShowTransferAccountPicker(false)}>
+          <Pressable style={styles.accountPickerCard} onPress={() => {}}>
+            <Text style={styles.accountPickerTitle}>SELECIONAR DESTINO</Text>
+            {accounts.filter((acc) => acc.id !== selectedAccountId).length === 0 ? (
+              <View style={styles.accountOptionEmpty}>
+                <Text style={styles.accountOptionEmptyText}>
+                  Nenhum outro banco disponível para receber a transferência.
+                </Text>
+              </View>
+            ) : (
+              accounts
+                .filter((acc) => acc.id !== selectedAccountId)
+                .map((acc) => (
+                  <TouchableOpacity
+                    key={acc.id}
+                    style={[
+                      styles.accountOption,
+                      selectedTransferAccountId === acc.id && styles.accountOptionActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedTransferAccountId(acc.id);
+                      setShowTransferAccountPicker(false);
+                    }}
+                  >
+                    <BankIcon bank={acc.id} size={28} />
+                    <Text
+                      style={[
+                        styles.accountOptionText,
+                        selectedTransferAccountId === acc.id && { color: Colors.primary },
+                      ]}
+                    >
+                      {acc.name}
+                    </Text>
+                    {selectedTransferAccountId === acc.id && (
+                      <Ionicons name="checkmark" size={18} color={Colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -322,7 +481,27 @@ const styles = StyleSheet.create({
   catChipActive: { backgroundColor: `${Colors.primary}15`, borderWidth: 1, borderColor: `${Colors.primary}30` },
   catIcon: { fontSize: 14 },
   catName: { fontSize: 12, fontWeight: '600', color: Colors.onSurfaceVariant },
+  transferHintBox: {
+    backgroundColor: `${Colors.primary}10`,
+    borderWidth: 1,
+    borderColor: `${Colors.primary}25`,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  transferHintText: {
+    fontFamily: 'VT323',
+    fontSize: 13,
+    letterSpacing: 1,
+    color: Colors.primary,
+    textAlign: 'center',
+  },
   metaRow: { flexDirection: 'row', gap: Spacing.lg },
+  transferRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm },
+  transferArrowWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 10,
+  },
   selectBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: Colors.surface, borderRadius: 8, borderBottomWidth: 1, borderBottomColor: `${Colors.primary}40` },
   modalBackdrop: { flex: 1, backgroundColor: '#000000AA', alignItems: 'center', justifyContent: 'center' },
   accountPickerCard: { backgroundColor: Colors.surfaceLow, borderWidth: 1, borderColor: Colors.outlineVariant, borderRadius: 4, width: 280, overflow: 'hidden' },
@@ -330,6 +509,8 @@ const styles = StyleSheet.create({
   accountOption: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderBottomWidth: 1, borderBottomColor: `${Colors.outlineVariant}60` },
   accountOptionActive: { backgroundColor: `${Colors.primary}10` },
   accountOptionText: { flex: 1, fontFamily: 'VT323', fontSize: 16, color: Colors.onSurface },
+  accountOptionEmpty: { padding: 16 },
+  accountOptionEmptyText: { fontFamily: 'VT323', fontSize: 14, color: Colors.onSurfaceVariant, textAlign: 'center' },
   selectText: { flex: 1, fontSize: 12, fontWeight: '500', color: Colors.onSurface },
   descInput: {
     backgroundColor: Colors.surface,
@@ -341,6 +522,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.onSurface,
     borderRadius: 0,
+  },
+  creditHint: {
+    alignItems: 'center',
+    paddingVertical: 4,
+    marginHorizontal: Spacing.xl,
+    marginTop: -Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: `${'#64B5F6'}18`,
+    borderWidth: 1,
+    borderColor: `${'#64B5F6'}40`,
+  },
+  creditHintText: {
+    fontFamily: 'VT323',
+    fontSize: 13,
+    letterSpacing: 2,
+    color: '#64B5F6',
   },
   saveBtn: { backgroundColor: Colors.primary, height: 56, borderRadius: 0, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg },
   saveBtnText: { fontFamily: 'VT323', fontSize: 18, textTransform: 'uppercase', letterSpacing: 2, color: Colors.onPrimary },

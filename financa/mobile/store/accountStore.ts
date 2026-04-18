@@ -4,11 +4,11 @@ import { money, Money } from '@/lib/money';
 export interface Account {
   id: string;
   name: string;
+  bank: string;
   type: string; // checking | savings | investment | wallet | other
   balance_cents: Money;
-  currency: string;
+  initial_balance_cents: Money;
   color: string | null;
-  icon: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -25,50 +25,8 @@ interface AccountState {
   getTotalBalance: () => Money;
 }
 
-const DEFAULT_ACCOUNTS: Account[] = [
-  {
-    id: 'nubank',
-    name: 'Nubank',
-    type: 'checking',
-    balance_cents: money(0),
-    currency: 'BRL',
-    color: '#820AD1',
-    icon: 'credit-card',
-    is_active: true,
-    created_at: '2025-01-01T00:00:00.000Z',
-    updated_at: '2025-01-01T00:00:00.000Z',
-    deleted_at: null,
-  },
-  {
-    id: 'itau',
-    name: 'Itaú',
-    type: 'checking',
-    balance_cents: money(0),
-    currency: 'BRL',
-    color: '#EC7000',
-    icon: 'bank',
-    is_active: true,
-    created_at: '2025-01-01T00:00:00.000Z',
-    updated_at: '2025-01-01T00:00:00.000Z',
-    deleted_at: null,
-  },
-  {
-    id: 'inter',
-    name: 'Inter',
-    type: 'checking',
-    balance_cents: money(0),
-    currency: 'BRL',
-    color: '#FF6600',
-    icon: 'bank-outline',
-    is_active: true,
-    created_at: '2025-01-01T00:00:00.000Z',
-    updated_at: '2025-01-01T00:00:00.000Z',
-    deleted_at: null,
-  },
-];
-
 export const useAccountStore = create<AccountState>((set, get) => ({
-  accounts: DEFAULT_ACCOUNTS,
+  accounts: [],
 
   setAccounts: (accounts) => set({ accounts }),
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { money, Money } from '@/lib/money';
-import { CATEGORY_MAP } from '@/constants/categories';
+
 import { useCategoryStore } from '@/store/categoryStore';
 
 export interface Transaction {
@@ -8,7 +8,7 @@ export interface Transaction {
   account_id: string;
   category_id: string | null;
   amount_cents: Money;
-  type: 'income' | 'expense' | 'transfer';
+  type: 'income' | 'expense' | 'transfer' | 'credit';
   description: string;
   date: string;
   notes: string | null;
@@ -58,8 +58,9 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   getMonthlyTotals: (year, month) => {
     const { transactions } = get();
     const prefix = `${year}-${String(month).padStart(2, '0')}`;
+    // credit transactions are excluded — they are tracked via the invoice, not here
     const active = transactions.filter(
-      (t) => t.date.startsWith(prefix) && !t.deleted_at,
+      (t) => t.date.startsWith(prefix) && !t.deleted_at && t.type !== 'credit',
     );
     const incomeCents = money(
       active.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount_cents, 0),
@@ -82,16 +83,23 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     const prefix = `${year}-${String(month).padStart(2, '0')}`;
     const totals: Record<string, number> = {};
     for (const t of transactions) {
-      if (t.deleted_at || t.type !== 'expense' || !t.date.startsWith(prefix)) continue;
+      if (t.deleted_at || (t.type !== 'expense' && t.type !== 'credit') || !t.date.startsWith(prefix)) continue;
       const key = t.category_id ?? '__sem_categoria__';
       totals[key] = (totals[key] ?? 0) + t.amount_cents;
     }
     const { getCategoryName } = useCategoryStore.getState();
-    return Object.entries(totals)
+    // Resolve names and merge entries that map to the same display name
+    // (happens when category_id exists in transactions but not yet in local store)
+    const byName: Record<string, number> = {};
+    for (const [id, amount] of Object.entries(totals)) {
+      const name = getCategoryName(id);
+      byName[name] = (byName[name] ?? 0) + amount;
+    }
+    return Object.entries(byName)
       .sort(([, a], [, b]) => b - a)
       .slice(0, limit)
-      .map(([id, total]) => ({
-        name: getCategoryName(id),
+      .map(([name, total]) => ({
+        name,
         amountCents: money(total),
       }));
   },
