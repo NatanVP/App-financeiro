@@ -490,6 +490,17 @@ export default function MoreScreen() {
         ))}
       </View>
 
+      {/* ══╡ V. DADOS DO REINO ╞══ */}
+      <ChapterDivider numeral="V." title="Dados do Reino" />
+
+      <TouchableOpacity style={styles.exportBtn} activeOpacity={0.75}>
+        <MaterialCommunityIcons name="database-export-outline" size={18} color={Colors.onSurface} />
+        <Text style={styles.exportText}>EXPORTAR BANCO DE DADOS</Text>
+        <Text style={styles.exportBadge}>SQLite3</Text>
+      </TouchableOpacity>
+      <Text style={styles.exportMeta}>FORMATO V1.0.0 · CRIPTOGRAFIA AES-256</Text>
+
+
       {/* rodapé de fechamento do grimório */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>✦ ─── FIM DO GRIMÓRIO ─── ✦</Text>

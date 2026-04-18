@@ -323,7 +323,7 @@ function MonsterEyes({ type }: { type: MonsterType }) {
       return (
         <View style={{ width: 22, height: 8, position: 'relative' }}>
           {fp(0, 2, 5, 3, '#9AC810')}
-          {fp(1, 0, 3, 2, '#9AC810')}
+          {fp(1, 0, 3, 2, '#9AC810')} {/* sobrancelha */}
           {fp(2, 3, 2, 1, '#080808')}
           {fp(15, 0, 5, 3, '#9AC810')}
           {fp(14, 2, 3, 2, '#9AC810')}
