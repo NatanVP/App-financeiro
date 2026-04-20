@@ -53,12 +53,11 @@ export async function scheduleBillNotifications(bills: Bill[]): Promise<void> {
           data: { billId: bill.id, type: 'due' },
         },
         trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
           day,
           hour: 9,
           minute: 0,
           repeats: true,
-        },
+        } as any,
       });
 
       // ─── Notificação: DIA ANTERIOR ────────────────────────────
@@ -72,12 +71,11 @@ export async function scheduleBillNotifications(bills: Bill[]): Promise<void> {
             data: { billId: bill.id, type: 'before' },
           },
           trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
             day: day - 1,
             hour: 9,
             minute: 0,
             repeats: true,
-          },
+          } as any,
         });
       }
     }
