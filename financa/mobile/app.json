@@ -9,7 +9,15 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/app-icon/Goblin_Finance.png",
+          "color": "#F0C030",
+          "sounds": []
+        }
+      ]
     ],
     "android": {
       "adaptiveIcon": {

@@ -18,6 +18,7 @@ import { router } from 'expo-router';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { formatBRL, money, parseBRL } from '@/lib/money';
+import { scheduleBillNotifications } from '@/lib/notifications';
 import { useBillStore } from '@/store/billStore';
 import { useBillPaymentStore } from '@/store/billPaymentStore';
 
@@ -323,6 +324,9 @@ export default function BillsScreen() {
       deleted_at: null,
     });
     setShowForm(false);
+    // Reagenda notificações com o novo contrato
+    const updated = useBillStore.getState().getRecurringBills();
+    scheduleBillNotifications(updated).catch(console.warn);
   };
 
   const handleDelete = (id: string, name: string) => {
@@ -331,7 +335,16 @@ export default function BillsScreen() {
       `"${name}" será removido dos registros do reino.`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Remover', style: 'destructive', onPress: () => deleteBill(id) },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: () => {
+            deleteBill(id);
+            // Reagenda sem o contrato removido
+            const updated = useBillStore.getState().getRecurringBills();
+            scheduleBillNotifications(updated).catch(console.warn);
+          },
+        },
       ],
     );
   };

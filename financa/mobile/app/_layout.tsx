@@ -5,8 +5,10 @@ import { View } from 'react-native';
 import * as Font from 'expo-font';
 import { Colors } from '@/constants/theme';
 import { performSync } from '@/lib/syncActions';
+import { requestNotificationPermission, scheduleBillNotifications } from '@/lib/notifications';
 import { useAccountStore } from '@/store/accountStore';
 import { useSalaryStore } from '@/store/salaryStore';
+import { useBillStore } from '@/store/billStore';
 
 export default function RootLayout() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
@@ -43,6 +45,21 @@ export default function RootLayout() {
       initSalary();
     } else {
       useSalaryStore.persist.onFinishHydration(initSalary);
+    }
+
+    // Agenda notificações de contratos após hydration da billStore
+    const initNotifications = async () => {
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        const bills = useBillStore.getState().getRecurringBills();
+        await scheduleBillNotifications(bills);
+      }
+    };
+
+    if (useBillStore.persist.hasHydrated()) {
+      initNotifications();
+    } else {
+      useBillStore.persist.onFinishHydration(initNotifications);
     }
   }, []);
 
