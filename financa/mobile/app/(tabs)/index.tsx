@@ -26,6 +26,7 @@ import { useAccountStore } from '@/store/accountStore';
 import { RPGIcon, RPGIconName } from '@/components/ui/RPGIcon';
 import { useSyncStore } from '@/store/syncStore';
 import { useBillStore } from '@/store/billStore';
+import { useBillPaymentStore } from '@/store/billPaymentStore';
 
 // ── Paleta da Taverna ───────────────────────────────────────
 const W = {
@@ -437,15 +438,26 @@ export default function DashboardScreen() {
     (received5th ? payment5thCents  : 0) +
     (received20th ? payment20thCents : 0) +
     (receivedLast ? paymentLastCents : 0);
-  const pendingCents        = totalMonthlyCents() - receivedSoFarCents;
-  const currentBalanceCents = getAccountsTotalBalance();
-  const projectionCents     = currentBalanceCents + pendingCents;
-  const { getRecurringBills } = useBillStore();
-  const billsMonthlyTotal   = getRecurringBills().reduce((s, b) => s + b.amount_cents, 0);
-  const endOfMonthCents     = projectionCents - billsMonthlyTotal;
+  const pendingCents = totalMonthlyCents() - receivedSoFarCents;
 
-  const activeDebts         = getActiveDebts();
-  const totalDebtBalance    = getTotalBalance();
+  // Contratos recorrentes: total / já pago / ainda pendente este mês
+  const { getRecurringBills } = useBillStore();
+  const { isPaid: isBillPaid } = useBillPaymentStore();
+  const recurringBills    = getRecurringBills();
+  const billsMonthlyTotal = recurringBills.reduce((s, b) => s + b.amount_cents, 0);
+  const paidBillsCents    = recurringBills
+    .filter((b) => isBillPaid(b.id, monthKey))
+    .reduce((s, b) => s + b.amount_cents, 0);
+  const unpaidBillsCents  = billsMonthlyTotal - paidBillsCents;
+
+  // "Na conta agora" desconta contratos já pagos este mês
+  const currentBalanceCents = getAccountsTotalBalance() - paidBillsCents;
+  const projectionCents     = currentBalanceCents + pendingCents;
+  // Fim de mês: Bolsa de Ouro menos contratos ainda pendentes (valor estável — é projeção)
+  const endOfMonthCents     = projectionCents - unpaidBillsCents;
+
+  const activeDebts      = getActiveDebts();
+  const totalDebtBalance = getTotalBalance();
 
   const activeAccounts = getActiveAccounts();
   // Ordena por preferência de banco; contas desconhecidas ficam no final
