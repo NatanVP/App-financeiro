@@ -291,15 +291,13 @@ const bStyles = StyleSheet.create({
 
 export default function BillsScreen() {
   const { getRecurringBills, addBill, deleteBill } = useBillStore();
-  const { isPaid, setPaid, autoMarkDue } = useBillPaymentStore();
+  const { isPaid, setPaid } = useBillPaymentStore();
   const [showForm, setShowForm] = useState(false);
 
   const monthKey = currentMonthKey();
   const bills = getRecurringBills();
 
-  useEffect(() => {
-    autoMarkDue(bills);
-  }, []);
+  // autoMarkDue removido — pagamento só marcado manualmente pelo usuário
 
   const totalMonthly = bills.reduce((s, b) => s + b.amount_cents, 0);
   const totalPaid = bills.filter((b) => isPaid(b.id, monthKey)).reduce((s, b) => s + b.amount_cents, 0);

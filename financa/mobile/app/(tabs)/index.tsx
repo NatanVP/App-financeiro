@@ -548,12 +548,19 @@ export default function DashboardScreen() {
         {billsMonthlyTotal > 0 && (
           <>
             <WoodDivider />
-            <View style={styles.endOfMonthRow}>
-              <Text style={styles.endOfMonthLabel}>▼ CONTRATOS MENSAIS</Text>
+            <TouchableOpacity
+              onPress={() => router.push('/bills')}
+              activeOpacity={0.75}
+              style={styles.endOfMonthRow}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.endOfMonthLabel}>▼ CONTRATOS MENSAIS</Text>
+              </View>
               <Text style={[styles.endOfMonthValue, { color: W.red }]}>
                 -{formatBRL(money(billsMonthlyTotal))}
               </Text>
-            </View>
+              <Text style={{ fontFamily: 'VT323', fontSize: 12, color: W.amber, marginLeft: 6 }}>→</Text>
+            </TouchableOpacity>
             <View style={[styles.endOfMonthRow, { marginTop: 2 }]}>
               <Text style={[styles.endOfMonthLabel, { color: W.gold, letterSpacing: 2 }]}>◈ FINAL DO MÊS</Text>
               <Text style={[styles.endOfMonthValue, { color: endOfMonthCents >= 0 ? W.green : W.red, fontSize: 20 }]}>
