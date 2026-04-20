@@ -565,23 +565,25 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Projeção final do mês descontando contratos recorrentes */}
-        {billsMonthlyTotal > 0 && (
+        {/* Projeção final do mês descontando contratos recorrentes e fatura */}
+        {(billsMonthlyTotal > 0 || invoiceTotalCents > 0) && (
           <>
             <WoodDivider />
-            <TouchableOpacity
-              onPress={() => router.push('/bills')}
-              activeOpacity={0.75}
-              style={styles.endOfMonthRow}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.endOfMonthLabel}>▼ CONTRATOS MENSAIS</Text>
-              </View>
-              <Text style={[styles.endOfMonthValue, { color: W.red }]}>
-                -{formatBRL(money(billsMonthlyTotal))}
-              </Text>
-              <Text style={{ fontFamily: 'VT323', fontSize: 12, color: W.amber, marginLeft: 6 }}>→</Text>
-            </TouchableOpacity>
+            {billsMonthlyTotal > 0 && (
+              <TouchableOpacity
+                onPress={() => router.push('/bills')}
+                activeOpacity={0.75}
+                style={styles.endOfMonthRow}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.endOfMonthLabel}>▼ CONTRATOS MENSAIS</Text>
+                </View>
+                <Text style={[styles.endOfMonthValue, { color: W.red }]}>
+                  -{formatBRL(money(billsMonthlyTotal))}
+                </Text>
+                <Text style={{ fontFamily: 'VT323', fontSize: 12, color: W.amber, marginLeft: 6 }}>→</Text>
+              </TouchableOpacity>
+            )}
             {creditEnabled && invoiceTotalCents > 0 && (
               <TouchableOpacity
                 onPress={() => router.push('/(tabs)/transactions')}
