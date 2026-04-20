@@ -22,6 +22,7 @@ import { BarChart } from '@/components/charts/BarChart';
 import { BankIcon } from '@/components/ui/BankIcon';
 import { CreditInvoiceWidget } from '@/components/ui/CreditInvoiceWidget';
 import { useCreditStore } from '@/store/creditStore';
+import { getCurrentInvoiceMonthKey, getInvoiceMonthKey } from '@/lib/credit';
 import { useAccountStore } from '@/store/accountStore';
 import { RPGIcon, RPGIconName } from '@/components/ui/RPGIcon';
 import { useSyncStore } from '@/store/syncStore';
@@ -450,11 +451,19 @@ export default function DashboardScreen() {
     .reduce((s, b) => s + b.amount_cents, 0);
   const unpaidBillsCents  = billsMonthlyTotal - paidBillsCents;
 
+  // Fatura de crédito do mês corrente
+  const invoiceMonthKey   = creditEnabled ? getCurrentInvoiceMonthKey(closingDay) : null;
+  const invoiceTotalCents = creditEnabled && invoiceMonthKey
+    ? transactions
+        .filter((t) => !t.deleted_at && t.type === 'credit' && getInvoiceMonthKey(t.date, closingDay) === invoiceMonthKey)
+        .reduce((s, t) => s + t.amount_cents, 0)
+    : 0;
+
   // "Na conta agora" desconta contratos já pagos este mês
   const currentBalanceCents = getAccountsTotalBalance() - paidBillsCents;
   const projectionCents     = currentBalanceCents + pendingCents;
-  // Fim de mês: Bolsa de Ouro menos contratos ainda pendentes (valor estável — é projeção)
-  const endOfMonthCents     = projectionCents - unpaidBillsCents;
+  // Fim de mês: Bolsa de Ouro menos contratos pendentes e fatura
+  const endOfMonthCents     = projectionCents - unpaidBillsCents - invoiceTotalCents;
 
   const activeDebts      = getActiveDebts();
   const totalDebtBalance = getTotalBalance();
@@ -573,6 +582,22 @@ export default function DashboardScreen() {
               </Text>
               <Text style={{ fontFamily: 'VT323', fontSize: 12, color: W.amber, marginLeft: 6 }}>→</Text>
             </TouchableOpacity>
+            {creditEnabled && invoiceTotalCents > 0 && (
+              <TouchableOpacity
+                onPress={() => router.push('/(tabs)/transactions')}
+                activeOpacity={0.75}
+                style={styles.endOfMonthRow}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.endOfMonthLabel}>▼ FATURA DO MÊS</Text>
+                </View>
+                <Text style={[styles.endOfMonthValue, { color: W.red }]}>
+                  -{formatBRL(money(invoiceTotalCents))}
+                </Text>
+                <Text style={{ fontFamily: 'VT323', fontSize: 12, color: W.amber, marginLeft: 6 }}>→</Text>
+              </TouchableOpacity>
+            )}
+
             <View style={[styles.endOfMonthRow, { marginTop: 2 }]}>
               <Text style={[styles.endOfMonthLabel, { color: W.gold, letterSpacing: 2 }]}>◈ FINAL DO MÊS</Text>
               <Text style={[styles.endOfMonthValue, { color: endOfMonthCents >= 0 ? W.green : W.red, fontSize: 20 }]}>
