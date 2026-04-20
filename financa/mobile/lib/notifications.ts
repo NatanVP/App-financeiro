@@ -36,47 +36,46 @@ export async function scheduleBillNotifications(bills: Bill[]): Promise<void> {
         .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
     );
 
+    const now = new Date();
+
     for (const bill of bills) {
       if (!bill.recurrence_day) continue;
 
-      const day = bill.recurrence_day;
+      const day   = bill.recurrence_day;
       const valor = formatBRL(money(bill.amount_cents));
-      const nome = bill.name.toUpperCase();
+      const nome  = bill.name.toUpperCase();
 
-      // ─── Notificação: DIA DO VENCIMENTO ───────────────────────
-      // Repete mensalmente no dia do vencimento às 09:00
-      await Notifications.scheduleNotificationAsync({
-        identifier: `bill-${bill.id}-due`,
-        content: {
-          title: '⚠  CONTRATO VENCE HOJE',
-          body: `[${nome}]  ·  Dia ${day}  ·  ${valor}\nPague antes que o reino perca honra!`,
-          data: { billId: bill.id, type: 'due' },
-        },
-        trigger: {
-          day,
-          hour: 9,
-          minute: 0,
-          repeats: true,
-        } as any,
-      });
+      // Agenda para os próximos 3 meses (app reagenda a cada abertura)
+      for (let offset = 0; offset < 3; offset++) {
+        // ─── Dia do vencimento às 09:00 ───────────────────────
+        const dueDate = new Date(now.getFullYear(), now.getMonth() + offset, day, 9, 0, 0);
+        if (dueDate > now) {
+          await Notifications.scheduleNotificationAsync({
+            identifier: `bill-${bill.id}-due-${offset}`,
+            content: {
+              title: '⚠  CONTRATO VENCE HOJE',
+              body: `[${nome}]  ·  Dia ${day}  ·  ${valor}\nPague antes que o reino perca honra!`,
+              data: { billId: bill.id, type: 'due' },
+            },
+            trigger: dueDate,
+          });
+        }
 
-      // ─── Notificação: DIA ANTERIOR ────────────────────────────
-      // Pula se o vencimento é dia 1 (dia anterior = último do mês anterior — complexo)
-      if (day > 1) {
-        await Notifications.scheduleNotificationAsync({
-          identifier: `bill-${bill.id}-before`,
-          content: {
-            title: '◆  AVISO DO ARAUTO',
-            body: `[${nome}] vence amanhã  ·  Dia ${day}  ·  ${valor}`,
-            data: { billId: bill.id, type: 'before' },
-          },
-          trigger: {
-            day: day - 1,
-            hour: 9,
-            minute: 0,
-            repeats: true,
-          } as any,
-        });
+        // ─── Dia anterior às 09:00 (pula se dia 1) ────────────
+        if (day > 1) {
+          const beforeDate = new Date(now.getFullYear(), now.getMonth() + offset, day - 1, 9, 0, 0);
+          if (beforeDate > now) {
+            await Notifications.scheduleNotificationAsync({
+              identifier: `bill-${bill.id}-before-${offset}`,
+              content: {
+                title: '◆  AVISO DO ARAUTO',
+                body: `[${nome}] vence amanhã  ·  Dia ${day}  ·  ${valor}`,
+                data: { billId: bill.id, type: 'before' },
+              },
+              trigger: beforeDate,
+            });
+          }
+        }
       }
     }
   } catch (e) {
