@@ -6,6 +6,7 @@ import * as Font from 'expo-font';
 import { Colors } from '@/constants/theme';
 import { performSync } from '@/lib/syncActions';
 import { useAccountStore } from '@/store/accountStore';
+import { useSalaryStore } from '@/store/salaryStore';
 
 export default function RootLayout() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
@@ -22,9 +23,27 @@ export default function RootLayout() {
 
     if (useAccountStore.persist.hasHydrated()) {
       runSync();
-      return;
+    } else {
+      useAccountStore.persist.onFinishHydration(runSync);
     }
-    return useAccountStore.persist.onFinishHydration(runSync);
+
+    // Inicializa salário padrão se nunca configurado
+    const initSalary = () => {
+      const s = useSalaryStore.getState();
+      if (s.payment5thCents === 0 && s.payment20thCents === 0 && s.paymentLastCents === 0) {
+        s.setSalaryConfig({ payment5thCents: 110600, payment20thCents: 84800, paymentLastCents: 12800 });
+        const now = new Date();
+        const mk = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        s.setManualReceived(mk, 'p5', true);
+        s.setManualReceived(mk, 'p20', true);
+      }
+    };
+
+    if (useSalaryStore.persist.hasHydrated()) {
+      initSalary();
+    } else {
+      useSalaryStore.persist.onFinishHydration(initSalary);
+    }
   }, []);
 
   if (!fontsLoaded) {

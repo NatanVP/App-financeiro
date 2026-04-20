@@ -74,7 +74,7 @@ const hStyles = StyleSheet.create({
 // ─── formulário inline ────────────────────────────────────────────────────────
 
 interface NewBillFormProps {
-  onSave: (name: string, amountInput: string, day: number) => void;
+  onSave: (name: string, amountInput: string, day: number, paymentVia: string) => void;
   onCancel: () => void;
 }
 
@@ -82,13 +82,14 @@ function NewBillForm({ onSave, onCancel }: NewBillFormProps) {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [day, setDay] = useState('');
+  const [paymentVia, setPaymentVia] = useState('');
 
   const handleSave = () => {
     if (!name.trim()) { Alert.alert('Campo obrigatório', 'Digite o nome da cobrança.'); return; }
     const d = parseInt(day, 10);
     if (isNaN(d) || d < 1 || d > 28) { Alert.alert('Dia inválido', 'Informe um dia entre 1 e 28.'); return; }
     try { parseBRL(amount || '0'); } catch { Alert.alert('Valor inválido', 'Use o formato 55,90'); return; }
-    onSave(name.trim(), amount, d);
+    onSave(name.trim(), amount, d, paymentVia.trim());
   };
 
   return (
@@ -137,6 +138,18 @@ function NewBillForm({ onSave, onCancel }: NewBillFormProps) {
             maxLength={2}
           />
         </View>
+      </View>
+
+      <View style={fStyles.field}>
+        <Text style={fStyles.label}>PAGO VIA (opcional)</Text>
+        <TextInput
+          style={fStyles.input}
+          value={paymentVia}
+          onChangeText={setPaymentVia}
+          placeholder="Mercado Pago, Inter, Itaú..."
+          placeholderTextColor={`${Colors.outline}80`}
+          autoCapitalize="words"
+        />
       </View>
 
       <View style={fStyles.btnRow}>
@@ -194,9 +207,10 @@ interface BillCardProps {
   onToggle: () => void;
   onDelete: () => void;
   monthKey: string;
+  paymentVia?: string | null;
 }
 
-function BillCard({ name, amountCents, recurrenceDay, paid, onToggle, onDelete, monthKey }: BillCardProps) {
+function BillCard({ name, amountCents, recurrenceDay, paid, onToggle, onDelete, monthKey, paymentVia }: BillCardProps) {
   const todayDay = new Date().getDate();
   const isToday = todayDay === recurrenceDay;
   const isOverdue = todayDay > recurrenceDay && !paid;
@@ -209,6 +223,9 @@ function BillCard({ name, amountCents, recurrenceDay, paid, onToggle, onDelete, 
           <Text style={[bStyles.day, isToday && bStyles.dayToday, isOverdue && bStyles.dayOverdue]}>
             {isToday ? '◆ VENCE HOJE' : isOverdue ? `⚠ VENCEU DIA ${recurrenceDay}` : `◆ DIA ${recurrenceDay} DE CADA MÊS`}
           </Text>
+          {!!paymentVia && (
+            <Text style={bStyles.paymentVia}>via {paymentVia}</Text>
+          )}
         </View>
         <View style={bStyles.right}>
           <Text style={bStyles.amount}>{formatBRL(money(amountCents))}</Text>
@@ -252,6 +269,7 @@ const bStyles = StyleSheet.create({
   day: { fontFamily: 'VT323', fontSize: 11, color: Colors.onSurfaceVariant, letterSpacing: 1.5 },
   dayToday: { color: Colors.primary },
   dayOverdue: { color: Colors.tertiary },
+  paymentVia: { fontFamily: 'VT323', fontSize: 10, color: Colors.outline, letterSpacing: 1 },
   amount: { fontFamily: 'VT323', fontSize: 20, color: Colors.primary, fontVariant: ['tabular-nums'] },
   monthLabel: { fontFamily: 'VT323', fontSize: 10, color: Colors.outline, letterSpacing: 1.5 },
   bottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -287,7 +305,7 @@ export default function BillsScreen() {
   const totalPaid = bills.filter((b) => isPaid(b.id, monthKey)).reduce((s, b) => s + b.amount_cents, 0);
   const totalPending = totalMonthly - totalPaid;
 
-  const handleSaveBill = (name: string, amountInput: string, day: number) => {
+  const handleSaveBill = (name: string, amountInput: string, day: number, paymentVia: string) => {
     let cents = money(0);
     try { cents = parseBRL(amountInput || '0'); } catch { /* zero */ }
     const now = new Date().toISOString();
@@ -301,7 +319,7 @@ export default function BillsScreen() {
       recurrence_day: day,
       status: 'pending',
       paid_at: null,
-      notes: null,
+      notes: paymentVia || null,
       created_at: now,
       updated_at: now,
       deleted_at: null,
@@ -379,6 +397,7 @@ export default function BillsScreen() {
                   onToggle={() => setPaid(bill.id, monthKey, !isPaid(bill.id, monthKey))}
                   onDelete={() => handleDelete(bill.id, bill.name)}
                   monthKey={monthKey}
+                  paymentVia={bill.notes}
                 />
               ))}
           </View>

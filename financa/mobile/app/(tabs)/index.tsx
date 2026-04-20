@@ -25,6 +25,7 @@ import { useCreditStore } from '@/store/creditStore';
 import { useAccountStore } from '@/store/accountStore';
 import { RPGIcon, RPGIconName } from '@/components/ui/RPGIcon';
 import { useSyncStore } from '@/store/syncStore';
+import { useBillStore } from '@/store/billStore';
 
 // ── Paleta da Taverna ───────────────────────────────────────
 const W = {
@@ -439,6 +440,10 @@ export default function DashboardScreen() {
   const pendingCents        = totalMonthlyCents() - receivedSoFarCents;
   const currentBalanceCents = getAccountsTotalBalance();
   const projectionCents     = currentBalanceCents + pendingCents;
+  const { getRecurringBills } = useBillStore();
+  const billsMonthlyTotal   = getRecurringBills().reduce((s, b) => s + b.amount_cents, 0);
+  const endOfMonthCents     = projectionCents - billsMonthlyTotal;
+
   const activeDebts         = getActiveDebts();
   const totalDebtBalance    = getTotalBalance();
 
@@ -538,6 +543,25 @@ export default function DashboardScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Projeção final do mês descontando contratos recorrentes */}
+        {billsMonthlyTotal > 0 && (
+          <>
+            <WoodDivider />
+            <View style={styles.endOfMonthRow}>
+              <Text style={styles.endOfMonthLabel}>▼ CONTRATOS MENSAIS</Text>
+              <Text style={[styles.endOfMonthValue, { color: W.red }]}>
+                -{formatBRL(money(billsMonthlyTotal))}
+              </Text>
+            </View>
+            <View style={[styles.endOfMonthRow, { marginTop: 2 }]}>
+              <Text style={[styles.endOfMonthLabel, { color: W.gold, letterSpacing: 2 }]}>◈ FINAL DO MÊS</Text>
+              <Text style={[styles.endOfMonthValue, { color: endOfMonthCents >= 0 ? W.green : W.red, fontSize: 20 }]}>
+                {formatBRL(money(endOfMonthCents))}
+              </Text>
+            </View>
+          </>
+        )}
 
         {/* Pagamentos individuais com botão "já recebi" */}
         {totalMonthlyCents() > 0 && (
@@ -787,6 +811,20 @@ const styles = StyleSheet.create({
 
   // ── Empty ─────────────────────────────────────────────
   emptyHint: { fontFamily: 'VT323', fontSize: 13, color: W.parchDim, marginTop: 4 },
+
+  // ── Final do mês ──────────────────────────────────
+  endOfMonthRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  endOfMonthLabel: {
+    fontFamily: 'VT323', fontSize: 12, letterSpacing: 1.5,
+    color: W.parchDim, flex: 1,
+  },
+  endOfMonthValue: {
+    fontFamily: 'VT323', fontSize: 16,
+    fontVariant: ['tabular-nums'],
+  },
 
   // ── Salário individual ─────────────────────────────
   salaryRow: {
