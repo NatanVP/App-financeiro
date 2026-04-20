@@ -490,17 +490,6 @@ export default function MoreScreen() {
         ))}
       </View>
 
-      {/* ══╡ V. DADOS DO REINO ╞══ */}
-      <ChapterDivider numeral="V." title="Dados do Reino" />
-
-      <TouchableOpacity style={styles.exportBtn} activeOpacity={0.75}>
-        <MaterialCommunityIcons name="database-export-outline" size={18} color={Colors.onSurface} />
-        <Text style={styles.exportText}>EXPORTAR BANCO DE DADOS</Text>
-        <Text style={styles.exportBadge}>SQLite3</Text>
-      </TouchableOpacity>
-      <Text style={styles.exportMeta}>FORMATO V1.0.0 · CRIPTOGRAFIA AES-256</Text>
-
-
       {/* rodapé de fechamento do grimório */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>✦ ─── FIM DO GRIMÓRIO ─── ✦</Text>
@@ -683,39 +672,6 @@ const styles = StyleSheet.create({
   // ── grids ──
   grid: { gap: 6 },
   gridRow: { flexDirection: 'row', gap: 6 },
-
-  // ── export ──
-  exportBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: Colors.surfaceHigh,
-    borderWidth: 1,
-    borderColor: `${Colors.outline}40`,
-    padding: Spacing.lg,
-  },
-  exportText: { fontFamily: 'VT323', fontSize: 16, letterSpacing: 2, color: Colors.onSurface, textTransform: 'uppercase' },
-  exportBadge: {
-    fontFamily: 'VT323',
-    fontSize: 11,
-    letterSpacing: 1,
-    color: Colors.outline,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: `${Colors.outline}50`,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  exportMeta: {
-    fontFamily: 'VT323',
-    fontSize: 10,
-    textAlign: 'center',
-    color: Colors.outline,
-    letterSpacing: 1.5,
-    opacity: 0.6,
-    marginTop: -8,
-  },
 
   // ── rodapé ──
   footer: { alignItems: 'center', paddingVertical: Spacing.md },
