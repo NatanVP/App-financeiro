@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,8 +58,9 @@ async def update_account(
     _: str = Depends(require_token),
 ) -> Account:
     account = await db.get(Account, account_id)
-    if not account or account.deleted_at:
+    if not account:
         raise HTTPException(status_code=404, detail="Account not found")
+    # Allow patching soft-deleted accounts (e.g. to set is_active=false)
     for field, value in payload.model_dump(exclude_none=True).items():
         setattr(account, field, value)
     return account
@@ -69,8 +72,10 @@ async def delete_account(
     db: AsyncSession = Depends(get_db),
     _: str = Depends(require_token),
 ) -> None:
-    from datetime import datetime, timezone
     account = await db.get(Account, account_id)
-    if not account or account.deleted_at:
+    if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    account.deleted_at = datetime.now(timezone.utc)
+    if not account.deleted_at:
+        account.deleted_at = datetime.now(timezone.utc)
+    # Always deactivate — ensures mobile filters it even if deleted_at is not serialized
+    account.is_active = False

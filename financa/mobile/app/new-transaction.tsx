@@ -60,7 +60,7 @@ export default function NewTransactionScreen() {
   };
 
   const { addTransaction } = useTransactionStore();
-  const { getActiveAccounts } = useAccountStore();
+  const { getActiveAccounts, updateAccount } = useAccountStore();
   const { closingDay, enabled: creditEnabled } = useCreditStore();
   const { getByType } = useCategoryStore();
   const accounts = getActiveAccounts();
@@ -160,6 +160,23 @@ export default function NewTransactionScreen() {
       // TODO: persistência local com expo-sqlite (substituto do op-sqlite)
       // Por enquanto salva só na store em memória + sync via backend
       addTransaction(tx);
+
+      // Atualiza saldo local imediatamente — "Cofres do Reino" reflete sem esperar sync
+      const srcAccount = accounts.find(a => a.id === tx.account_id);
+      if (srcAccount) {
+        if (tx.type === 'income') {
+          updateAccount(tx.account_id, { balance_cents: money(srcAccount.balance_cents + tx.amount_cents) });
+        } else if (tx.type === 'expense') {
+          updateAccount(tx.account_id, { balance_cents: money(srcAccount.balance_cents - tx.amount_cents) });
+        } else if (tx.type === 'transfer' && tx.transfer_to_account_id) {
+          updateAccount(tx.account_id, { balance_cents: money(srcAccount.balance_cents - tx.amount_cents) });
+          const destAccount = accounts.find(a => a.id === tx.transfer_to_account_id);
+          if (destAccount) {
+            updateAccount(tx.transfer_to_account_id, { balance_cents: money(destAccount.balance_cents + tx.amount_cents) });
+          }
+        }
+      }
+
       router.back();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);

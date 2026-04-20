@@ -161,7 +161,7 @@ export default function DebtsScreen() {
 
         {debts.length === 0 && (
           <View style={styles.emptyBox}>
-            <MaterialCommunityIcons name="anvil-off" size={32} color={Colors.onSurfaceVariant} />
+            <MaterialCommunityIcons name="hammer-off" size={32} color={Colors.onSurfaceVariant} />
             <Text style={styles.emptyText}>NENHUMA DIVIDA ATIVA</Text>
             <Text style={styles.emptyHint}>
               Toque em NOVA para registrar um contrato ou emprestimo

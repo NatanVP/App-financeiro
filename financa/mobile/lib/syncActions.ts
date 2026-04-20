@@ -66,7 +66,10 @@ export async function performSync(): Promise<void> {
 
     setSyncSuccess();
   } catch (e) {
-    setSyncError(String(e));
+    const msg = e instanceof Error && e.name === 'AbortError'
+      ? 'Timeout: servidor não respondeu em 15s'
+      : String(e);
+    setSyncError(msg);
     throw e;
   }
 }

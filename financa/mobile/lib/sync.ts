@@ -58,10 +58,20 @@ export interface SyncPushResponse {
   conflicts: number;
 }
 
+const FETCH_TIMEOUT_MS = 15_000;
+
+function fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(timer),
+  );
+}
+
 export async function pullFromServer(): Promise<SyncPullResponse> {
   const since = await getLastSyncTs();
   const url = `${API_BASE}/sync/pull?since=${encodeURIComponent(since)}`;
-  const res = await fetch(url, { headers: HEADERS });
+  const res = await fetchWithTimeout(url, { headers: HEADERS });
   if (!res.ok) {
     throw new Error(`Pull failed: ${res.status} ${res.statusText}`);
   }
@@ -71,7 +81,7 @@ export async function pullFromServer(): Promise<SyncPullResponse> {
 }
 
 export async function pushToServer(payload: SyncPushRequest): Promise<SyncPushResponse> {
-  const res = await fetch(`${API_BASE}/sync/push`, {
+  const res = await fetchWithTimeout(`${API_BASE}/sync/push`, {
     method: 'POST',
     headers: HEADERS,
     body: JSON.stringify(payload),

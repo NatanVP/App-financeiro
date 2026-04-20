@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { type RPGIconName } from '@/components/ui/RPGIcon';
 
 export interface Category {
@@ -9,6 +11,14 @@ export interface Category {
   type: 'income' | 'expense' | 'both';
   /** Whether this is a built-in system category that cannot be deleted */
   system?: boolean;
+}
+
+/** Formato que chega do servidor no /sync/pull */
+export interface ServerCategory {
+  id: string;
+  name: string;
+  icon: string;
+  type: 'income' | 'expense' | 'both';
 }
 
 /**
@@ -30,6 +40,7 @@ const DEFAULT_CATEGORIES: Category[] = [
 
 interface CategoryState {
   categories: Category[];
+  setCategories: (serverCats: ServerCategory[]) => void;
   addCategory: (cat: Omit<Category, 'id'>) => void;
   deleteCategory: (id: string) => void;
   updateCategory: (id: string, updates: Partial<Omit<Category, 'id' | 'system'>>) => void;
@@ -38,35 +49,60 @@ interface CategoryState {
   getByType: (type: 'income' | 'expense') => Category[];
 }
 
-export const useCategoryStore = create<CategoryState>((set, get) => ({
-  categories: DEFAULT_CATEGORIES,
+export const useCategoryStore = create<CategoryState>()(
+  persist(
+    (set, get) => ({
+      categories: DEFAULT_CATEGORIES,
 
-  addCategory: (cat) =>
-    set((state) => ({
-      categories: [
-        ...state.categories,
-        { ...cat, id: `cat_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` },
-      ],
-    })),
+      setCategories: (serverCats) =>
+        set((state) => {
+          // Keep system defaults, merge server categories on top
+          const systemCats = DEFAULT_CATEGORIES.filter((c) => c.system);
+          const serverMapped: Category[] = serverCats.map((sc) => ({
+            id: sc.id,
+            name: sc.name,
+            icon: (sc.icon as RPGIconName) ?? 'coin_bag',
+            type: sc.type,
+          }));
+          // Deduplicate: server overrides defaults by id
+          const byId = new Map<string, Category>();
+          for (const c of [...systemCats, ...serverMapped]) byId.set(c.id, c);
+          return { categories: Array.from(byId.values()) };
+        }),
 
-  deleteCategory: (id) =>
-    set((state) => ({
-      categories: state.categories.filter((c) => c.id !== id || c.system),
-    })),
+      addCategory: (cat) =>
+        set((state) => ({
+          categories: [
+            ...state.categories,
+            { ...cat, id: `cat_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` },
+          ],
+        })),
 
-  updateCategory: (id, updates) =>
-    set((state) => ({
-      categories: state.categories.map((c) =>
-        c.id === id && !c.system ? { ...c, ...updates } : c,
-      ),
-    })),
+      deleteCategory: (id) =>
+        set((state) => ({
+          categories: state.categories.filter((c) => c.id !== id || c.system),
+        })),
 
-  getCategoryName: (id) =>
-    get().categories.find((c) => c.id === id)?.name ?? 'Outros',
+      updateCategory: (id, updates) =>
+        set((state) => ({
+          categories: state.categories.map((c) =>
+            c.id === id && !c.system ? { ...c, ...updates } : c,
+          ),
+        })),
 
-  getCategoryIcon: (id) =>
-    get().categories.find((c) => c.id === id)?.icon ?? 'coin_bag',
+      getCategoryName: (id) =>
+        get().categories.find((c) => c.id === id)?.name ?? 'Outros',
 
-  getByType: (type) =>
-    get().categories.filter((c) => c.type === type || c.type === 'both'),
-}));
+      getCategoryIcon: (id) =>
+        get().categories.find((c) => c.id === id)?.icon ?? 'coin_bag',
+
+      getByType: (type) =>
+        get().categories.filter((c) => c.type === type || c.type === 'both'),
+    }),
+    {
+      name: 'financa:categories',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ categories: state.categories }),
+    }
+  )
+);

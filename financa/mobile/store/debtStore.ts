@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { money, Money } from '@/lib/money';
 
 export interface Debt {
@@ -30,49 +32,58 @@ interface DebtState {
   getTotalBalance: () => Money;
 }
 
-export const useDebtStore = create<DebtState>((set, get) => ({
-  debts: [],
+export const useDebtStore = create<DebtState>()(
+  persist(
+    (set, get) => ({
+      debts: [],
 
-  setDebts: (debts) => set({ debts }),
+      setDebts: (debts) => set({ debts }),
 
-  addDebt: (debt) => set((state) => ({ debts: [debt, ...state.debts] })),
+      addDebt: (debt) => set((state) => ({ debts: [debt, ...state.debts] })),
 
-  updateDebt: (id, updates) =>
-    set((state) => ({
-      debts: state.debts.map((d) =>
-        d.id === id ? { ...d, ...updates, updated_at: new Date().toISOString() } : d,
-      ),
-    })),
+      updateDebt: (id, updates) =>
+        set((state) => ({
+          debts: state.debts.map((d) =>
+            d.id === id ? { ...d, ...updates, updated_at: new Date().toISOString() } : d,
+          ),
+        })),
 
-  applyPayment: (id, amountCents) =>
-    set((state) => ({
-      debts: state.debts.map((d) => {
-        if (d.id !== id) return d;
+      applyPayment: (id, amountCents) =>
+        set((state) => ({
+          debts: state.debts.map((d) => {
+            if (d.id !== id) return d;
 
-        const nextBalance = money(Math.max(0, d.current_balance_cents - amountCents));
-        return {
-          ...d,
-          current_balance_cents: nextBalance,
-          status: nextBalance === 0 ? 'paid' : d.status,
-          updated_at: new Date().toISOString(),
-        };
-      }),
-    })),
+            const nextBalance = money(Math.max(0, d.current_balance_cents - amountCents));
+            return {
+              ...d,
+              current_balance_cents: nextBalance,
+              status: nextBalance === 0 ? 'paid' : d.status,
+              updated_at: new Date().toISOString(),
+            };
+          }),
+        })),
 
-  deleteDebt: (id) =>
-    set((state) => ({
-      debts: state.debts.map((d) =>
-        d.id === id ? { ...d, deleted_at: new Date().toISOString() } : d,
-      ),
-    })),
+      deleteDebt: (id) =>
+        set((state) => ({
+          debts: state.debts.map((d) =>
+            d.id === id ? { ...d, deleted_at: new Date().toISOString() } : d,
+          ),
+        })),
 
-  getActiveDebts: () =>
-    get().debts.filter((d) => d.status === 'active' && !d.deleted_at),
+      getActiveDebts: () =>
+        get().debts.filter((d) => d.status === 'active' && !d.deleted_at),
 
-  getTotalBalance: () =>
-    money(
-      get()
-        .getActiveDebts()
-        .reduce((s, d) => s + d.current_balance_cents, 0),
-    ),
-}));
+      getTotalBalance: () =>
+        money(
+          get()
+            .getActiveDebts()
+            .reduce((s, d) => s + d.current_balance_cents, 0),
+        ),
+    }),
+    {
+      name: 'financa:debts',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ debts: state.debts }),
+    }
+  )
+);

@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { money, Money } from '@/lib/money';
 
 export interface Account {
@@ -25,35 +27,44 @@ interface AccountState {
   getTotalBalance: () => Money;
 }
 
-export const useAccountStore = create<AccountState>((set, get) => ({
-  accounts: [],
+export const useAccountStore = create<AccountState>()(
+  persist(
+    (set, get) => ({
+      accounts: [],
 
-  setAccounts: (accounts) => set({ accounts }),
+      setAccounts: (accounts) => set({ accounts }),
 
-  addAccount: (account) =>
-    set((state) => ({ accounts: [account, ...state.accounts] })),
+      addAccount: (account) =>
+        set((state) => ({ accounts: [account, ...state.accounts] })),
 
-  updateAccount: (id, updates) =>
-    set((state) => ({
-      accounts: state.accounts.map((a) =>
-        a.id === id ? { ...a, ...updates, updated_at: new Date().toISOString() } : a,
-      ),
-    })),
+      updateAccount: (id, updates) =>
+        set((state) => ({
+          accounts: state.accounts.map((a) =>
+            a.id === id ? { ...a, ...updates, updated_at: new Date().toISOString() } : a,
+          ),
+        })),
 
-  deleteAccount: (id) =>
-    set((state) => ({
-      accounts: state.accounts.map((a) =>
-        a.id === id ? { ...a, deleted_at: new Date().toISOString() } : a,
-      ),
-    })),
+      deleteAccount: (id) =>
+        set((state) => ({
+          accounts: state.accounts.map((a) =>
+            a.id === id ? { ...a, deleted_at: new Date().toISOString() } : a,
+          ),
+        })),
 
-  getActiveAccounts: () =>
-    get().accounts.filter((a) => a.is_active && !a.deleted_at),
+      getActiveAccounts: () =>
+        get().accounts.filter((a) => a.is_active && !a.deleted_at),  // deleted_at pode vir do backend novo; is_active cobre o backend antigo
 
-  getTotalBalance: () => {
-    const total = get()
-      .accounts.filter((a) => a.is_active && !a.deleted_at)
-      .reduce((sum, a) => sum + a.balance_cents, 0);
-    return money(total);
-  },
-}));
+      getTotalBalance: () => {
+        const total = get()
+          .accounts.filter((a) => a.is_active && !a.deleted_at)
+          .reduce((sum, a) => sum + a.balance_cents, 0);
+        return money(total);
+      },
+    }),
+    {
+      name: 'financa:accounts',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ accounts: state.accounts }),
+    }
+  )
+);

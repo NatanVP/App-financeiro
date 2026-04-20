@@ -16,7 +16,7 @@ import { formatBRL, money } from '@/lib/money';
 import { getReceivedPayments } from '@/lib/businessDays';
 import { useTransactionStore } from '@/store/transactionStore';
 import { useDebtStore } from '@/store/debtStore';
-import { useSalaryStore } from '@/store/salaryStore';
+import { useSalaryStore, MonthOverrides } from '@/store/salaryStore';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { BarChart } from '@/components/charts/BarChart';
 import { BankIcon } from '@/components/ui/BankIcon';
@@ -24,6 +24,7 @@ import { CreditInvoiceWidget } from '@/components/ui/CreditInvoiceWidget';
 import { useCreditStore } from '@/store/creditStore';
 import { useAccountStore } from '@/store/accountStore';
 import { RPGIcon, RPGIconName } from '@/components/ui/RPGIcon';
+import { useSyncStore } from '@/store/syncStore';
 
 // ── Paleta da Taverna ───────────────────────────────────────
 const W = {
@@ -419,18 +420,25 @@ export default function DashboardScreen() {
   const { transactions, getMonthlyTotals, getTopCategories } = useTransactionStore();
   const { closingDay, dueDay, enabled: creditEnabled } = useCreditStore();
   const { getActiveDebts, getTotalBalance } = useDebtStore();
-  const { payment5thCents, payment20thCents, paymentLastCents, salaryAccountId, totalMonthlyCents } = useSalaryStore();
-  const { getActiveAccounts } = useAccountStore();
+  const { payment5thCents, payment20thCents, paymentLastCents, salaryAccountId, totalMonthlyCents, manualOverrides, setManualReceived } = useSalaryStore();
+  const { accounts, getActiveAccounts, getTotalBalance: getAccountsTotalBalance } = useAccountStore();
+  const { status: syncStatus, errorMessage: syncError } = useSyncStore();
+
+  const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+  const overrides: MonthOverrides = manualOverrides[monthKey] ?? {};
 
   const { expenseCents } = getMonthlyTotals(year, month);
-  const { received5th, received20th, receivedLast } = getReceivedPayments(year, month, today);
+  const { received5th: date5th, received20th: date20th, receivedLast: dateLast } = getReceivedPayments(year, month, today);
+  const received5th  = date5th  || !!overrides.p5;
+  const received20th = date20th || !!overrides.p20;
+  const receivedLast = dateLast || !!overrides.pLast;
   const receivedSoFarCents =
     (received5th ? payment5thCents  : 0) +
     (received20th ? payment20thCents : 0) +
     (receivedLast ? paymentLastCents : 0);
   const pendingCents        = totalMonthlyCents() - receivedSoFarCents;
-  const projectionCents     = totalMonthlyCents() - expenseCents;
-  const currentBalanceCents = receivedSoFarCents - expenseCents;
+  const currentBalanceCents = getAccountsTotalBalance();
+  const projectionCents     = currentBalanceCents + pendingCents;
   const activeDebts         = getActiveDebts();
   const totalDebtBalance    = getTotalBalance();
 
@@ -473,6 +481,19 @@ export default function DashboardScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={W.amber} />
       }
     >
+      {/* ── Banner de sync ───────────────────────────────── */}
+      {syncStatus === 'syncing' && (
+        <View style={[styles.syncErrorBanner, { borderColor: '#6A3A18' }]}>
+          <Text style={[styles.syncErrorText, { color: '#B08010' }]}>⟳ SINCRONIZANDO...</Text>
+        </View>
+      )}
+      {syncStatus === 'error' && (
+        <View style={styles.syncErrorBanner}>
+          <Text style={styles.syncErrorText}>⚠ SYNC FALHOU — puxe para atualizar</Text>
+          <Text style={styles.syncErrorDetail}>{syncError ?? 'erro desconhecido'}</Text>
+        </View>
+      )}
+
       {/* ── Header: Placa da Taverna ─────────────────────── */}
       <TavernHeader
         month={month} year={year}
@@ -517,12 +538,79 @@ export default function DashboardScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Pagamentos individuais com botão "já recebi" */}
+        {totalMonthlyCents() > 0 && (
+          <>
+            <WoodDivider />
+            <View style={{ gap: 6 }}>
+              {payment5thCents > 0 && (
+                <View style={styles.salaryRow}>
+                  <Text style={styles.salaryLabel}>◆ 5° DIA ÚTIL</Text>
+                  <Text style={[styles.salaryAmt, { color: received5th ? W.green : W.parchDim }]}>
+                    {formatBRL(money(payment5thCents))}
+                  </Text>
+                  {received5th ? (
+                    <Text style={styles.salaryBadge}>✓</Text>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.salaryBtn}
+                      onPress={() => setManualReceived(monthKey, 'p5', true)}
+                    >
+                      <Text style={styles.salaryBtnText}>JÁ RECEBI</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+              {payment20thCents > 0 && (
+                <View style={styles.salaryRow}>
+                  <Text style={styles.salaryLabel}>◆ 20° DIA ÚTIL</Text>
+                  <Text style={[styles.salaryAmt, { color: received20th ? W.green : W.parchDim }]}>
+                    {formatBRL(money(payment20thCents))}
+                  </Text>
+                  {received20th ? (
+                    <Text style={styles.salaryBadge}>✓</Text>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.salaryBtn}
+                      onPress={() => setManualReceived(monthKey, 'p20', true)}
+                    >
+                      <Text style={styles.salaryBtnText}>JÁ RECEBI</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+              {paymentLastCents > 0 && (
+                <View style={styles.salaryRow}>
+                  <Text style={styles.salaryLabel}>◆ ÚLTIMO DIA</Text>
+                  <Text style={[styles.salaryAmt, { color: receivedLast ? W.green : W.parchDim }]}>
+                    {formatBRL(money(paymentLastCents))}
+                  </Text>
+                  {receivedLast ? (
+                    <Text style={styles.salaryBadge}>✓</Text>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.salaryBtn}
+                      onPress={() => setManualReceived(monthKey, 'pLast', true)}
+                    >
+                      <Text style={styles.salaryBtnText}>JÁ RECEBI</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </View>
+          </>
+        )}
       </TavernCard>
 
       {/* ── Cofres do Reino ──────────────────────────────── */}
       <TavernCard icon="gem" title="COFRES DO REINO">
         {realmAccounts.length === 0 ? (
-          <Text style={styles.emptyHint}>Nenhum cofre ativo encontrado.</Text>
+          <Text style={styles.emptyHint}>
+            {accounts.length === 0
+              ? `Nenhum cofre — puxe para sincronizar (status: ${syncStatus})`
+              : `${accounts.length} contas no store, ${getActiveAccounts().length} ativas — puxe para atualizar`}
+          </Text>
         ) : (
           <View style={{ gap: 0 }}>
             {realmAccounts.map((account, idx) => (
@@ -689,6 +777,40 @@ const styles = StyleSheet.create({
   debtValue: { fontFamily: 'VT323', fontSize: 16, fontVariant: ['tabular-nums'], color: W.parchment },
   tapHint:   { fontFamily: 'VT323', fontSize: 11, color: W.amber, textAlign: 'right', marginTop: 4 },
 
+  // ── Sync error ────────────────────────────────────────
+  syncErrorBanner: {
+    backgroundColor: '#3A0808', borderWidth: 1, borderColor: '#8A2020',
+    padding: 8, marginBottom: 4,
+  },
+  syncErrorText: { fontFamily: 'VT323', fontSize: 13, color: '#CC4444', letterSpacing: 1 },
+  syncErrorDetail: { fontFamily: 'VT323', fontSize: 10, color: '#884444', marginTop: 2 },
+
   // ── Empty ─────────────────────────────────────────────
   emptyHint: { fontFamily: 'VT323', fontSize: 13, color: W.parchDim, marginTop: 4 },
+
+  // ── Salário individual ─────────────────────────────
+  salaryRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', gap: 6,
+  },
+  salaryLabel: {
+    fontFamily: 'VT323', fontSize: 12, letterSpacing: 1.5,
+    color: W.parchDim, flex: 1,
+  },
+  salaryAmt: {
+    fontFamily: 'VT323', fontSize: 14, fontVariant: ['tabular-nums'],
+  },
+  salaryBadge: {
+    fontFamily: 'VT323', fontSize: 14, color: W.green, width: 60, textAlign: 'right',
+  },
+  salaryBtn: {
+    paddingHorizontal: 6, paddingVertical: 2,
+    backgroundColor: '#1A0A04',
+    borderWidth: 1, borderColor: W.amber,
+    width: 60,
+  },
+  salaryBtnText: {
+    fontFamily: 'VT323', fontSize: 10, letterSpacing: 1,
+    color: W.amber, textAlign: 'center',
+  },
 });

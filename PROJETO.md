@@ -5,7 +5,57 @@
 
 ---
 
-## ONDE PARAMOS — 2026-04-18
+## ONDE PARAMOS — 2026-04-18 (sessão 2)
+
+### O que foi feito nesta sessão
+
+1. **Persistência offline — Zustand persist middleware**
+   - Stores com persist: `accountStore`, `transactionStore`, `salaryStore`, `debtStore`, `categoryStore`
+   - Cada store usa `createJSONStorage(() => AsyncStorage)` com chave `financa:<entidade>`
+   - `partialize` persiste só os dados (não as funções)
+   - Resultado: dados sobrevivem ao fechar e reabrir o app
+
+2. **Botão "JÁ RECEBI" no Bolsa de Ouro**
+   - `salaryStore` ganhou `manualOverrides: Record<string, MonthOverrides>` (chave `YYYY-MM`)
+   - `MonthOverrides = { p5?: boolean; p20?: boolean; pLast?: boolean }`
+   - Dashboard combina: `received5th = date5thPassed || !!overrides.p5`
+   - Botão aparece em cada slot de pagamento não marcado como recebido
+
+3. **Sync com timeout 15s**
+   - `lib/sync.ts`: `fetchWithTimeout` via `AbortController` — cancela após 15s
+   - `syncActions.ts`: detecta `AbortError` → mensagem "Timeout: servidor não respondeu em 15s"
+   - Dashboard mostra banner `⟳ SINCRONIZANDO...` / `⚠ SYNC FALHOU — <msg>` via `syncStore`
+
+4. **Fix backend `accounts.py`**
+   - `DELETE /{id}`: `deleted_at` só definido se ainda nulo; **sempre** seta `is_active = False`
+   - `PATCH /{id}`: removida checagem `or account.deleted_at` (permite editar contas soft-deletadas)
+   - Deployado via Claude Code direto na VPS + `docker compose up --build -d backend`
+
+5. **Contas antigas deletadas via API**
+   - `Conta Corrente` (`2d7e7ab7-...`) → DELETE 204 ✅
+   - `Corrente 2` (`82179eef-...`) → DELETE 204 ✅
+   - `Nubank` (`1f787a0a-...`) → DELETE 204 ✅
+
+6. **Sync na inicialização do app**
+   - `_layout.tsx`: `performSync()` chamado em background após fontes carregadas (não bloqueia UI)
+
+### Estado do banco de dados (atual)
+
+| Conta | ID | Saldo |
+|---|---|---|
+| Itaú | `14732aba-fc00-4cbc-b108-99c6b190a89a` | R$ 206,21 |
+| Inter | `30f2f23b-7671-4b97-905a-506ef8d86a37` | R$ 100,00 |
+| ~~Nubank~~ | `1f787a0a-...` | soft-deleted + is_active=False |
+| ~~Conta Corrente~~ | `2d7e7ab7-...` | soft-deleted + is_active=False |
+| ~~Corrente 2~~ | `82179eef-...` | soft-deleted + is_active=False |
+
+### Sobre o "Bolsa de Ouro" negativo
+
+A "Bolsa de Ouro" calcula `receberSoFar - gastos` com base no **salário configurável**. Como o salário ainda está em R$0,00 (não configurado), o resultado é negativo (só gastos). Isso é comportamento correto — configure o salário em Configurações → Bolsa de Ouro para ver a projeção real.
+
+---
+
+## ONDE PARAMOS — 2026-04-18 (sessão 1)
 
 ### O que foi feito nesta sessão
 
@@ -30,31 +80,6 @@
    - Contas deletadas no banco ("Conta Corrente", "Corrente 2") eram retornadas sem `deleted_at` pelo sync pull
    - O mobile as tratava como ativas → apareciam no dashboard
    - Fix: `AccountOut` agora inclui `deleted_at: datetime | None = None`
-
-### Ação pendente URGENTE no VPS
-
-```bash
-ssh user@89.117.32.220
-cd /opt/financa
-git pull origin master
-docker compose -f financa/infra/docker-compose.yml up -d --build api
-```
-
-Depois disso, pull-to-refresh no app → "Conta Corrente" e "Corrente 2" somem.
-
-### Estado do banco de dados (pós-importação)
-
-| Conta | ID | Saldo |
-|---|---|---|
-| Nubank | `1f787a0a-84ac-48a7-8f4e-5d12b769934e` | R$ 1.415,00 |
-| Itaú | `14732aba-fc00-4cbc-b108-99c6b190a89a` | R$ 260,21 |
-| Inter | `30f2f23b-7671-4b97-905a-506ef8d86a37` | R$ 100,00 |
-| ~~Conta Corrente~~ | `2d7e7ab7-...` | deletada no BD |
-| ~~Corrente 2~~ | `82179eef-...` | deletada no BD |
-
-### Sobre o "Bolsa de Ouro" negativo
-
-A "Bolsa de Ouro" calcula `receberSoFar - gastos` com base no **salário configurável**. Como o salário ainda está em R$0,00 (não configurado), o resultado é negativo (só gastos). Isso é comportamento correto — configure o salário em Configurações → Bolsa de Ouro para ver a projeção real.
 
 ---
 
@@ -82,7 +107,7 @@ App de finanças pessoais com tema **RPG medieval pixel art**. Uso pessoal, sem 
 ### Mobile
 - **Expo SDK 51** + **Expo Router ~3.5** (file-based navigation)
 - **React Native** + **TypeScript strict**
-- **Zustand ^4.5** — estado global (em memória; sem SQLite local por enquanto)
+- **Zustand ^4.5** — estado global com **persist middleware** (AsyncStorage) — dados sobrevivem ao fechar o app
 - **VT323** — fonte pixel art em todo o app
 - **Kenney Tiny Dungeon (CC0)** — ícones pixel art (espada, baú, escudo, etc.)
 - **MaterialCommunityIcons / Ionicons** — ícones de suporte
@@ -336,8 +361,22 @@ POST /sync/push { transactions, accounts, debts, goals, bills, budgets }
 ```
 
 ### Trigger
+- Ao abrir o app (background, não bloqueia UI — via `_layout.tsx`)
 - Pull-to-refresh no Dashboard
-- *(planejado: ao abrir o app, ao voltar do background, a cada 5 min)*
+- *(planejado: ao voltar do background, a cada 5 min)*
+
+### Arquitetura de persistência (decisão 2026-04-18)
+
+**Estratégia híbrida: local-first + sync com VPS**
+
+| Camada | Tecnologia atual | Próximo passo | Futuro |
+|--------|-----------------|---------------|--------|
+| Local | Zustand + AsyncStorage persist | expo-background-fetch (sync noturno) | expo-sqlite |
+| Remoto | FastAPI + PostgreSQL na VPS | — | — |
+| Sync | performSync() manual no startup | Nightly background push/pull | — |
+
+**Motivação:** app pessoal, uso offline-first. VPS é backup + acesso via Telegram bot.
+Não migrar para SQLite enquanto AsyncStorage for suficiente (dados pequenos, < 1MB).
 
 ---
 
@@ -417,19 +456,35 @@ npx expo start --clear    # QR code para Expo Go / emulador
 
 ## 13. Próximas Prioridades
 
-- [ ] **Deploy do fix `AccountOut.deleted_at`** na VPS (remove "Conta Corrente" e "Corrente 2")
-- [ ] **Configurar salário** no app (para Bolsa de Ouro mostrar valor positivo real)
-- [ ] **Persistência offline** — migrar stores Zustand de memória para `expo-sqlite` (dados somem ao fechar o app)
+- [x] ~~Deploy do fix `AccountOut.deleted_at` na VPS~~
+- [x] ~~Persistência offline — Zustand persist com AsyncStorage~~
+- [x] ~~Contas antigas (Conta Corrente, Corrente 2, Nubank) removidas do app~~
+- [ ] **Configurar salário** no app (Bolsa de Ouro mostra valor positivo real)
+- [ ] **Fix nome banco Itaú** — DB armazena `ItaÃº` (double-encoded); corrigir via PATCH
+- [ ] **Sync bidirecional testado** end-to-end (push de transações criadas no app)
+- [ ] **Background sync noturno** — `expo-background-fetch` chamando `performSync()` 1x/dia
 - [ ] **Rotacionar API token** exposto no git history (commit `e773f58`)
 - [ ] **EAS Build** de preview com novo tema RPG e ícone
-- [ ] **Sync bidirecional testado** end-to-end (push de transações criadas no app)
 - [ ] **Cadastrar dados reais** — salário, despesas fixas, dívidas
+- [ ] **Migrar AsyncStorage → expo-sqlite** (quando volume de dados crescer)
 
 ---
 
 ## 14. Changelog
 
-### 2026-04-18
+### 2026-04-18 (sessão 2)
+- Feat: Zustand persist middleware em 5 stores (accounts, transactions, salary, debts, categories) — dados sobrevivem ao fechar o app
+- Feat: botão "JÁ RECEBI" no Bolsa de Ouro — `manualOverrides` em `salaryStore` por mês/slot
+- Feat: sync na inicialização do app (background, não bloqueia UI)
+- Feat: banners de status sync no dashboard (sincronizando / erro com mensagem)
+- Fix: timeout 15s no fetch de sync via `AbortController`
+- Fix: backend `DELETE /accounts/{id}` sempre seta `is_active=False`
+- Fix: backend `PATCH /accounts/{id}` aceita contas soft-deletadas
+- Fix: `categoryStore` — adicionado `ServerCategory` type e `setCategories` (estava quebrando sync silenciosamente)
+- Contas deletadas via API: Nubank, Conta Corrente, Corrente 2 (is_active=False confirmado)
+- Decisão arquitetural: local-first (AsyncStorage) + VPS como backup/Telegram; SQLite só quando necessário
+
+### 2026-04-18 (sessão 1)
 - Fix: `AccountOut` inclui `deleted_at` (contas deletadas não aparecem mais no mobile)
 - Fix: accounts não hardcoded; `mergeById` usa UUIDs do servidor
 - Fix: `balance_cents` direto do servidor no dashboard (sem double-counting)

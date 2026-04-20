@@ -4,26 +4,28 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import * as Font from 'expo-font';
 import { Colors } from '@/constants/theme';
+import { performSync } from '@/lib/syncActions';
+import { useAccountStore } from '@/store/accountStore';
 
 export default function RootLayout() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        await Font.loadAsync({
-          VT323: require('../assets/fonts/VT323-Regular.ttf'),
-        });
-      } catch (e) {
-        // Fonte não encontrada — app continua com fallback do sistema
-        console.warn('Font VT323 not loaded:', e);
-      } finally {
-        setFontsLoaded(true);
-      }
-    })();
-  }, []);
+    Font.loadAsync({
+      VT323: require('../assets/fonts/VT323-Regular.ttf'),
+    })
+      .catch((e) => console.warn('Font VT323 not loaded:', e))
+      .finally(() => setFontsLoaded(true));
 
-  // TODO: inicializar expo-sqlite aqui quando migrar persistência local
+    // Sync AFTER persist hydration — prevents AsyncStorage from overwriting synced data
+    const runSync = () => performSync().catch((e) => console.warn('Startup sync failed:', e));
+
+    if (useAccountStore.persist.hasHydrated()) {
+      runSync();
+      return;
+    }
+    return useAccountStore.persist.onFinishHydration(runSync);
+  }, []);
 
   if (!fontsLoaded) {
     return <View style={{ flex: 1, backgroundColor: Colors.background }} />;
