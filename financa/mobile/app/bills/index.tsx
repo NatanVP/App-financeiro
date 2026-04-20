@@ -1,301 +1,413 @@
 /**
- * Bills screen (Contas a Pagar)
- * Groups bills by: Overdue → Pending → Scheduled → Paid.
- * Shows total pending and next 30-day forecast.
+ * Contratos do Reino — Cobranças recorrentes mensais.
+ * Assinaturas, mensalidades e qualquer débito fixo mensal.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Pressable,
+  Alert,
   ScrollView,
-  SectionList,
   StyleSheet,
   Text,
+  TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Colors, Spacing, Typography, PrimaryGradient, BorderRadius } from '@/constants/theme';
-import { formatBRL, money } from '@/lib/money';
-import { useBillStore, Bill } from '@/store/billStore';
-import { BillRow } from '@/components/ui/BillRow';
 
-type TabFilter = 'pending' | 'all';
+import { Colors, Spacing } from '@/constants/theme';
+import { formatBRL, money, parseBRL } from '@/lib/money';
+import { useBillStore } from '@/store/billStore';
+import { useBillPaymentStore } from '@/store/billPaymentStore';
 
-interface Section {
-  title: string;
-  titleColor: string;
-  data: Bill[];
+// ─── helpers ──────────────────────────────────────────────────────────────────
+
+function currentMonthKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function formatDueDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
-
-  if (diff < 0) return `Atrasado ${Math.abs(diff)}d`;
-  if (diff === 0) return 'Hoje';
-  if (diff === 1) return 'Amanhã';
-  if (diff <= 7) return `Em ${diff} dias`;
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+function monthLabel(key: string): string {
+  const [year, month] = key.split('-');
+  const names = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+  return `${names[parseInt(month) - 1]}/${year}`;
 }
 
-export default function BillsScreen() {
-  const [tab, setTab] = useState<TabFilter>('pending');
-  const { bills, updateBill } = useBillStore();
+// ─── header ───────────────────────────────────────────────────────────────────
 
-  const activeBills = useMemo(
-    () => bills.filter((b) => !b.deleted_at),
-    [bills],
-  );
-
-  const { overdue, pending, scheduled, paid } = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    return {
-      overdue: activeBills.filter(
-        (b) => b.status === 'overdue' || (b.status === 'pending' && b.due_date < today),
-      ),
-      pending: activeBills.filter(
-        (b) => b.status === 'pending' && b.due_date >= today,
-      ),
-      scheduled: activeBills.filter((b) => b.status === 'scheduled'),
-      paid: activeBills.filter((b) => b.status === 'paid'),
-    };
-  }, [activeBills]);
-
-  const sections: Section[] = useMemo(() => {
-    const raw: Section[] = [
-      { title: 'Atrasadas', titleColor: Colors.tertiary, data: overdue },
-      { title: 'Pendentes', titleColor: Colors.onSurfaceVariant, data: pending },
-      { title: 'Agendadas', titleColor: Colors.onSurfaceVariant, data: scheduled },
-    ];
-    if (tab === 'all') raw.push({ title: 'Pagas', titleColor: Colors.secondary, data: paid });
-    return raw.filter((s) => s.data.length > 0);
-  }, [tab, overdue, pending, scheduled, paid]);
-
-  const totalPending = useMemo(
-    () => money([...overdue, ...pending].reduce((s, b) => s + b.amount_cents, 0)),
-    [overdue, pending],
-  );
-
-  const handleMarkPaid = (id: string) => {
-    updateBill(id, { status: 'paid', paid_at: new Date().toISOString() });
-  };
-
+function Header({ onBack }: { onBack: () => void }) {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={styles.root}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backIcon}>←</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Contas a Pagar</Text>
-        <View style={{ width: 32 }} />
+    <View style={[hStyles.wrap, { paddingTop: insets.top + 8 }]}>
+      <TouchableOpacity onPress={onBack} hitSlop={12} style={hStyles.backBtn}>
+        <MaterialCommunityIcons name="chevron-left" size={20} color={Colors.primary} />
+        <Text style={hStyles.backText}>GRIMÓRIO</Text>
+      </TouchableOpacity>
+      <View style={hStyles.titleRow}>
+        <MaterialCommunityIcons name="calendar-clock" size={18} color={Colors.primary} />
+        <Text style={hStyles.title}>CONTRATOS DO REINO</Text>
       </View>
-
-      {/* Summary strip */}
-      <LinearGradient
-        colors={[Colors.surfaceLow, Colors.surface]}
-        style={styles.summaryStrip}
-      >
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>PENDENTE</Text>
-          <Text style={[styles.summaryValue, { color: Colors.tertiary }]}>
-            {formatBRL(totalPending)}
-          </Text>
-        </View>
-        <View style={styles.summaryDivider} />
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>ATRASADAS</Text>
-          <Text style={[styles.summaryValue, { color: overdue.length > 0 ? Colors.tertiary : Colors.secondary }]}>
-            {overdue.length}
-          </Text>
-        </View>
-        <View style={styles.summaryDivider} />
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>PAGAS NO MÊS</Text>
-          <Text style={[styles.summaryValue, { color: Colors.secondary }]}>
-            {paid.length}
-          </Text>
-        </View>
-      </LinearGradient>
-
-      {/* Tab filter */}
-      <View style={styles.tabRow}>
-        <Pressable
-          style={[styles.tab, tab === 'pending' && styles.tabActive]}
-          onPress={() => setTab('pending')}
-        >
-          <Text style={[styles.tabText, tab === 'pending' && styles.tabTextActive]}>
-            Em aberto
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.tab, tab === 'all' && styles.tabActive]}
-          onPress={() => setTab('all')}
-        >
-          <Text style={[styles.tabText, tab === 'all' && styles.tabTextActive]}>
-            Todas
-          </Text>
-        </Pressable>
-      </View>
-
-      <SectionList
-        sections={sections}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        renderSectionHeader={({ section }) => (
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: section.titleColor }]}>
-              {section.title.toUpperCase()}
-            </Text>
-            <Text style={styles.sectionCount}>{section.data.length}</Text>
-          </View>
-        )}
-        renderItem={({ item }) => (
-          <View style={styles.billContainer}>
-            <BillRow
-              name={item.name}
-              amountCents={item.amount_cents}
-              dueDateLabel={formatDueDate(item.due_date)}
-              status={
-                item.status === 'pending' && item.due_date < new Date().toISOString().split('T')[0]
-                  ? 'overdue'
-                  : (item.status as 'pending' | 'paid' | 'overdue' | 'scheduled')
-              }
-              onPress={
-                item.status !== 'paid'
-                  ? () => handleMarkPaid(item.id)
-                  : undefined
-              }
-            />
-            {item.is_recurring && (
-              <View style={styles.recurringBadge}>
-                <Text style={styles.recurringText}>Recorrente · dia {item.recurrence_day}</Text>
-              </View>
-            )}
-          </View>
-        )}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>Nenhuma conta encontrada</Text>
-            <Text style={styles.emptySubtitle}>Toque em + para adicionar uma conta</Text>
-          </View>
-        }
-        stickySectionHeadersEnabled={false}
-      />
-
-      {/* FAB */}
-      <Pressable style={styles.fab} onPress={() => router.push('/bills/new')}>
-        <LinearGradient
-          colors={PrimaryGradient.colors}
-          start={PrimaryGradient.start}
-          end={PrimaryGradient.end}
-          style={styles.fabGradient}
-        >
-          <Text style={styles.fabIcon}>+</Text>
-        </LinearGradient>
-      </Pressable>
+      <Text style={hStyles.sub}>cobranças recorrentes mensais</Text>
+      <View style={hStyles.ruler} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.surfaceLowest },
-
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingTop: 52,
-    paddingBottom: Spacing.md,
-    gap: Spacing.md,
-  },
-  backBtn: { padding: 4 },
-  backIcon: { fontSize: 22, color: Colors.primaryText, fontWeight: '300' },
-  headerTitle: { flex: 1, ...Typography.headlineSm, color: Colors.primary, textAlign: 'center' },
-
-  summaryStrip: {
-    flexDirection: 'row',
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.xl,
+const hStyles = StyleSheet.create({
+  wrap: {
+    backgroundColor: Colors.surfaceHigh,
     borderBottomWidth: 1,
-    borderColor: `${Colors.outlineVariant}20`,
-  },
-  summaryItem: { flex: 1, gap: 4, alignItems: 'center' },
-  summaryLabel: { ...Typography.labelXs, color: Colors.onSurfaceVariant },
-  summaryValue: { fontSize: 16, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  summaryDivider: { width: 1, backgroundColor: `${Colors.outlineVariant}30` },
-
-  tabRow: {
-    flexDirection: 'row',
+    borderBottomColor: `${Colors.outline}40`,
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    gap: Spacing.sm,
+    paddingBottom: 14,
+    gap: 4,
   },
-  tab: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 7,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.surface,
-  },
-  tabActive: { backgroundColor: Colors.primary },
-  tabText: { fontSize: 11, fontWeight: '600', color: Colors.onSurfaceVariant },
-  tabTextActive: { color: Colors.onPrimary },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 4 },
+  backText: { fontFamily: 'VT323', fontSize: 12, color: Colors.primary, letterSpacing: 2 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  title: { fontFamily: 'VT323', fontSize: 22, letterSpacing: 3, color: Colors.onSurface },
+  sub: { fontFamily: 'VT323', fontSize: 11, letterSpacing: 2, color: Colors.onSurfaceVariant, textTransform: 'uppercase' },
+  ruler: { height: 1, backgroundColor: `${Colors.outline}30`, marginTop: 6 },
+});
 
-  listContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: 100,
-  },
+// ─── formulário inline ────────────────────────────────────────────────────────
 
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.md,
-    marginTop: Spacing.xs,
-  },
-  sectionTitle: { ...Typography.labelXs, fontWeight: '700' },
-  sectionCount: {
-    fontSize: 10,
-    color: `${Colors.onSurfaceVariant}80`,
-    fontVariant: ['tabular-nums'],
-  },
+interface NewBillFormProps {
+  onSave: (name: string, amountInput: string, day: number) => void;
+  onCancel: () => void;
+}
 
-  billContainer: {
-    backgroundColor: Colors.surfaceLow,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md,
+function NewBillForm({ onSave, onCancel }: NewBillFormProps) {
+  const [name, setName] = useState('');
+  const [amount, setAmount] = useState('');
+  const [day, setDay] = useState('');
+
+  const handleSave = () => {
+    if (!name.trim()) { Alert.alert('Campo obrigatório', 'Digite o nome da cobrança.'); return; }
+    const d = parseInt(day, 10);
+    if (isNaN(d) || d < 1 || d > 28) { Alert.alert('Dia inválido', 'Informe um dia entre 1 e 28.'); return; }
+    try { parseBRL(amount || '0'); } catch { Alert.alert('Valor inválido', 'Use o formato 55,90'); return; }
+    onSave(name.trim(), amount, d);
+  };
+
+  return (
+    <View style={fStyles.card}>
+      <View style={fStyles.header}>
+        <Text style={fStyles.headerText}>◆ NOVO CONTRATO</Text>
+      </View>
+
+      <View style={fStyles.field}>
+        <Text style={fStyles.label}>NOME</Text>
+        <TextInput
+          style={fStyles.input}
+          value={name}
+          onChangeText={setName}
+          placeholder="Netflix, Academia, Spotify..."
+          placeholderTextColor={`${Colors.outline}80`}
+          autoCapitalize="words"
+        />
+      </View>
+
+      <View style={fStyles.row}>
+        <View style={[fStyles.field, { flex: 2 }]}>
+          <Text style={fStyles.label}>VALOR</Text>
+          <View style={fStyles.amountRow}>
+            <TextInput
+              style={[fStyles.input, { flex: 1 }]}
+              value={amount}
+              onChangeText={setAmount}
+              placeholder="0,00"
+              placeholderTextColor={`${Colors.outline}80`}
+              keyboardType="numeric"
+            />
+            <Text style={fStyles.currency}>G$</Text>
+          </View>
+        </View>
+
+        <View style={[fStyles.field, { flex: 1 }]}>
+          <Text style={fStyles.label}>DIA DO MÊS</Text>
+          <TextInput
+            style={[fStyles.input, { textAlign: 'center' }]}
+            value={day}
+            onChangeText={setDay}
+            placeholder="15"
+            placeholderTextColor={`${Colors.outline}80`}
+            keyboardType="number-pad"
+            maxLength={2}
+          />
+        </View>
+      </View>
+
+      <View style={fStyles.btnRow}>
+        <TouchableOpacity style={fStyles.cancelBtn} onPress={onCancel} activeOpacity={0.75}>
+          <Text style={fStyles.cancelText}>CANCELAR</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={fStyles.saveBtn} onPress={handleSave} activeOpacity={0.75}>
+          <MaterialCommunityIcons name="feather" size={14} color={Colors.surfaceLowest} />
+          <Text style={fStyles.saveText}>REGISTRAR</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+const fStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surfaceHighest,
     borderWidth: 1,
-    borderColor: `${Colors.outlineVariant}15`,
+    borderColor: `${Colors.primary}40`,
+    gap: 12,
+    padding: Spacing.lg,
   },
-  recurringBadge: {
-    paddingBottom: 8,
+  header: { borderBottomWidth: 1, borderBottomColor: `${Colors.outline}30`, paddingBottom: 8 },
+  headerText: { fontFamily: 'VT323', fontSize: 14, letterSpacing: 3, color: Colors.primary },
+  field: { gap: 4 },
+  label: { fontFamily: 'VT323', fontSize: 11, letterSpacing: 2, color: Colors.onSurfaceVariant, textTransform: 'uppercase' },
+  input: {
+    fontFamily: 'VT323', fontSize: 18, color: Colors.onSurface,
+    borderBottomWidth: 1, borderBottomColor: `${Colors.outline}50`, paddingVertical: 4,
   },
-  recurringText: { fontSize: 9, color: `${Colors.primary}80`, letterSpacing: 0.5 },
+  row: { flexDirection: 'row', gap: 12 },
+  amountRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  currency: { fontFamily: 'VT323', fontSize: 13, color: `${Colors.primary}80`, letterSpacing: 1 },
+  btnRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  cancelBtn: {
+    flex: 1, paddingVertical: 10, alignItems: 'center',
+    borderWidth: 1, borderColor: `${Colors.outline}50`, backgroundColor: Colors.surface,
+  },
+  cancelText: { fontFamily: 'VT323', fontSize: 15, letterSpacing: 2, color: Colors.onSurfaceVariant },
+  saveBtn: {
+    flex: 2, flexDirection: 'row', gap: 6, paddingVertical: 10,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary,
+  },
+  saveText: { fontFamily: 'VT323', fontSize: 15, letterSpacing: 3, color: Colors.surfaceLowest },
+});
 
-  separator: { height: Spacing.xs },
+// ─── card de cobrança ──────────────────────────────────────────────────────────
 
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 48,
-    gap: 8,
-  },
-  emptyTitle: { ...Typography.titleSm, color: Colors.onSurfaceVariant },
-  emptySubtitle: { ...Typography.bodySm, color: `${Colors.onSurfaceVariant}80` },
+interface BillCardProps {
+  name: string;
+  amountCents: number;
+  recurrenceDay: number;
+  paid: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+  monthKey: string;
+}
 
-  fab: {
-    position: 'absolute',
-    right: 24,
-    bottom: 24,
-    width: 56,
-    height: 56,
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
-    elevation: 8,
+function BillCard({ name, amountCents, recurrenceDay, paid, onToggle, onDelete, monthKey }: BillCardProps) {
+  const todayDay = new Date().getDate();
+  const isToday = todayDay === recurrenceDay;
+  const isOverdue = todayDay > recurrenceDay && !paid;
+
+  return (
+    <View style={bStyles.card}>
+      <View style={bStyles.top}>
+        <View style={bStyles.left}>
+          <Text style={bStyles.name} numberOfLines={1}>{name.toUpperCase()}</Text>
+          <Text style={[bStyles.day, isToday && bStyles.dayToday, isOverdue && bStyles.dayOverdue]}>
+            {isToday ? '◆ VENCE HOJE' : isOverdue ? `⚠ VENCEU DIA ${recurrenceDay}` : `◆ DIA ${recurrenceDay} DE CADA MÊS`}
+          </Text>
+        </View>
+        <View style={bStyles.right}>
+          <Text style={bStyles.amount}>{formatBRL(money(amountCents))}</Text>
+          <Text style={bStyles.monthLabel}>{monthLabel(monthKey)}</Text>
+        </View>
+      </View>
+
+      <View style={bStyles.bottom}>
+        <TouchableOpacity
+          style={[bStyles.statusBtn, paid ? bStyles.statusPaid : isOverdue ? bStyles.statusOverdue : bStyles.statusPending]}
+          onPress={onToggle}
+          activeOpacity={0.75}
+        >
+          <MaterialCommunityIcons
+            name={paid ? 'check-circle-outline' : 'circle-outline'}
+            size={14}
+            color={paid ? Colors.secondary : isOverdue ? Colors.tertiary : Colors.onSurfaceVariant}
+          />
+          <Text style={[bStyles.statusText, paid ? bStyles.statusTextPaid : isOverdue ? bStyles.statusTextOverdue : bStyles.statusTextPending]}>
+            {paid ? 'PAGO' : isOverdue ? 'ATRASADO' : 'PENDENTE'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={onDelete} hitSlop={10} style={bStyles.deleteBtn}>
+          <MaterialCommunityIcons name="trash-can-outline" size={16} color={`${Colors.tertiary}80`} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+const bStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surfaceHighest, borderWidth: 1,
+    borderColor: `${Colors.outline}30`, padding: 12, gap: 10,
   },
-  fabGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  fabIcon: { fontSize: 28, fontWeight: '300', color: Colors.onPrimary, lineHeight: 32 },
+  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  left: { flex: 1, gap: 2, paddingRight: 8 },
+  right: { alignItems: 'flex-end', gap: 2 },
+  name: { fontFamily: 'VT323', fontSize: 18, color: Colors.onSurface, letterSpacing: 0.5 },
+  day: { fontFamily: 'VT323', fontSize: 11, color: Colors.onSurfaceVariant, letterSpacing: 1.5 },
+  dayToday: { color: Colors.primary },
+  dayOverdue: { color: Colors.tertiary },
+  amount: { fontFamily: 'VT323', fontSize: 20, color: Colors.primary, fontVariant: ['tabular-nums'] },
+  monthLabel: { fontFamily: 'VT323', fontSize: 10, color: Colors.outline, letterSpacing: 1.5 },
+  bottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  statusBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1,
+  },
+  statusPaid: { backgroundColor: `${Colors.secondary}15`, borderColor: `${Colors.secondary}50` },
+  statusPending: { backgroundColor: Colors.surface, borderColor: `${Colors.outline}40` },
+  statusOverdue: { backgroundColor: `${Colors.tertiary}10`, borderColor: `${Colors.tertiary}50` },
+  statusText: { fontFamily: 'VT323', fontSize: 14, letterSpacing: 2 },
+  statusTextPaid: { color: Colors.secondary },
+  statusTextPending: { color: Colors.onSurfaceVariant },
+  statusTextOverdue: { color: Colors.tertiary },
+  deleteBtn: { padding: 4 },
+});
+
+// ─── tela ──────────────────────────────────────────────────────────────────────
+
+export default function BillsScreen() {
+  const { getRecurringBills, addBill, deleteBill } = useBillStore();
+  const { isPaid, setPaid, autoMarkDue } = useBillPaymentStore();
+  const [showForm, setShowForm] = useState(false);
+
+  const monthKey = currentMonthKey();
+  const bills = getRecurringBills();
+
+  useEffect(() => {
+    autoMarkDue(bills);
+  }, []);
+
+  const totalMonthly = bills.reduce((s, b) => s + b.amount_cents, 0);
+  const totalPaid = bills.filter((b) => isPaid(b.id, monthKey)).reduce((s, b) => s + b.amount_cents, 0);
+  const totalPending = totalMonthly - totalPaid;
+
+  const handleSaveBill = (name: string, amountInput: string, day: number) => {
+    let cents = money(0);
+    try { cents = parseBRL(amountInput || '0'); } catch { /* zero */ }
+    const now = new Date().toISOString();
+    addBill({
+      id: `bill-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name,
+      amount_cents: cents,
+      category_id: null,
+      due_date: now.slice(0, 10),
+      is_recurring: true,
+      recurrence_day: day,
+      status: 'pending',
+      paid_at: null,
+      notes: null,
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+    });
+    setShowForm(false);
+  };
+
+  const handleDelete = (id: string, name: string) => {
+    Alert.alert(
+      'Remover contrato?',
+      `"${name}" será removido dos registros do reino.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Remover', style: 'destructive', onPress: () => deleteBill(id) },
+      ],
+    );
+  };
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Header onBack={() => router.back()} />
+
+      <View style={styles.body}>
+        {bills.length > 0 && (
+          <View style={styles.summary}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>TOTAL MENSAL</Text>
+              <Text style={styles.summaryValue}>{formatBRL(money(totalMonthly))}</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>PAGO</Text>
+              <Text style={[styles.summaryValue, { color: Colors.secondary }]}>{formatBRL(money(totalPaid))}</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>PENDENTE</Text>
+              <Text style={[styles.summaryValue, { color: totalPending > 0 ? Colors.tertiary : Colors.onSurfaceVariant }]}>
+                {formatBRL(money(totalPending))}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {!showForm && (
+          <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(true)} activeOpacity={0.75}>
+            <MaterialCommunityIcons name="plus" size={16} color={Colors.primary} />
+            <Text style={styles.addBtnText}>NOVO CONTRATO</Text>
+          </TouchableOpacity>
+        )}
+
+        {showForm && (
+          <NewBillForm onSave={handleSaveBill} onCancel={() => setShowForm(false)} />
+        )}
+
+        {bills.length === 0 && !showForm ? (
+          <View style={styles.empty}>
+            <MaterialCommunityIcons name="calendar-remove-outline" size={32} color={Colors.outline} />
+            <Text style={styles.emptyTitle}>NENHUM CONTRATO</Text>
+            <Text style={styles.emptyHint}>
+              Adicione assinaturas, mensalidades{'\n'}e cobranças fixas mensais.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.list}>
+            {bills
+              .sort((a, b) => (a.recurrence_day ?? 0) - (b.recurrence_day ?? 0))
+              .map((bill) => (
+                <BillCard
+                  key={bill.id}
+                  name={bill.name}
+                  amountCents={bill.amount_cents}
+                  recurrenceDay={bill.recurrence_day ?? 1}
+                  paid={isPaid(bill.id, monthKey)}
+                  onToggle={() => setPaid(bill.id, monthKey, !isPaid(bill.id, monthKey))}
+                  onDelete={() => handleDelete(bill.id, bill.name)}
+                  monthKey={monthKey}
+                />
+              ))}
+          </View>
+        )}
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.surfaceLowest },
+  content: { paddingBottom: 80 },
+  body: { padding: Spacing.lg, gap: Spacing.md },
+  summary: {
+    flexDirection: 'row', backgroundColor: Colors.surfaceHighest,
+    borderWidth: 1, borderColor: `${Colors.outline}30`, padding: 12,
+  },
+  summaryItem: { flex: 1, alignItems: 'center', gap: 2 },
+  summaryDivider: { width: 1, backgroundColor: `${Colors.outline}30`, marginVertical: 4 },
+  summaryLabel: { fontFamily: 'VT323', fontSize: 10, letterSpacing: 1.5, color: Colors.onSurfaceVariant, textTransform: 'uppercase' },
+  summaryValue: { fontFamily: 'VT323', fontSize: 18, fontVariant: ['tabular-nums'], color: Colors.onSurface },
+  addBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderWidth: 1, borderColor: `${Colors.primary}50`, borderStyle: 'dashed',
+    paddingVertical: 12, backgroundColor: `${Colors.primary}08`,
+  },
+  addBtnText: { fontFamily: 'VT323', fontSize: 16, letterSpacing: 3, color: Colors.primary },
+  list: { gap: 8 },
+  empty: { alignItems: 'center', gap: 10, paddingVertical: 40 },
+  emptyTitle: { fontFamily: 'VT323', fontSize: 18, letterSpacing: 2, color: Colors.onSurfaceVariant },
+  emptyHint: { fontFamily: 'VT323', fontSize: 13, color: Colors.outline, letterSpacing: 0.5, textAlign: 'center', lineHeight: 18 },
 });
